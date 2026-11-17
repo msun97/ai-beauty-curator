@@ -7,3 +7,12 @@ management:
   endpoint:
     health:
       show-details: always
+
+app:
+  auth:
+    jwt:
+      secret: local-dev-only-secret-change-me-0123456789   # 로컬 전용 값. 운영에서 사용 금지
+    cookie:
+      secure: false        # http://localhost 에서도 쿠키가 전송되도록
+  mail:
+    provider: log          # 재설정 메일 대신 링크를 로그로 출력

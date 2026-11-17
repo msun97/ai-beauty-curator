@@ -81,6 +81,10 @@ cd frontend && npm run lint && npm run build
 | `PORT` | backend | 서버 포트 | `8090` |
 | `CORS_ALLOWED_ORIGINS` | backend | 허용할 프론트엔드 주소 (쉼표 구분) | `http://localhost:3100` |
 | `SPRING_PROFILES_ACTIVE` | backend | 실행 프로필 | `local` |
-| `API_BASE_URL` | frontend | 서버 컴포넌트가 호출할 백엔드 주소 | `http://localhost:8090` |
+| `JWT_SECRET` | backend | Access Token 서명 키 (32바이트 이상, 운영 필수) | local 프로필에 개발용 값 |
+| `AUTH_COOKIE_SECURE` | backend | 인증 쿠키 Secure 속성 | `true` (local 프로필은 `false`) |
+| `FRONTEND_BASE_URL` | backend | 비밀번호 재설정 링크의 프론트엔드 주소 | `http://localhost:3100` |
+| `MAIL_PROVIDER` | backend | 메일 발송 방식 (`log`: 링크를 로그로 출력, 로컬 전용) | local 프로필은 `log` |
+| `API_BASE_URL` | frontend | 백엔드 주소 (서버 컴포넌트 호출, `/api/**` 프록시 대상) | `http://localhost:8090` |
 
 운영 환경의 비밀 정보는 코드 저장소에 넣지 않고 배포 플랫폼의 환경 변수로 설정합니다.
