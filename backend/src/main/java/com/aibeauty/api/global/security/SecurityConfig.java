@@ -25,7 +25,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
-import com.aibeauty.api.global.error.ErrorCode;
+import com.aibeauty.api.global.error.CommonErrorCode;
 import com.aibeauty.api.global.error.ErrorResponseWriter;
 
 @Configuration
@@ -55,14 +55,14 @@ public class SecurityConfig {
 				.bearerTokenResolver(new CookieBearerTokenResolver())
 				.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
 				.authenticationEntryPoint((request, response, e) ->
-					errorResponseWriter.write(response, ErrorCode.UNAUTHORIZED))
+					errorResponseWriter.write(response, CommonErrorCode.UNAUTHORIZED))
 				.accessDeniedHandler((request, response, e) ->
-					errorResponseWriter.write(response, ErrorCode.FORBIDDEN)))
+					errorResponseWriter.write(response, CommonErrorCode.FORBIDDEN)))
 			.exceptionHandling(exceptions -> exceptions
 				.authenticationEntryPoint((request, response, e) ->
-					errorResponseWriter.write(response, ErrorCode.UNAUTHORIZED))
+					errorResponseWriter.write(response, CommonErrorCode.UNAUTHORIZED))
 				.accessDeniedHandler((request, response, e) ->
-					errorResponseWriter.write(response, ErrorCode.FORBIDDEN)))
+					errorResponseWriter.write(response, CommonErrorCode.FORBIDDEN)))
 			.addFilterBefore(new CsrfHeaderFilter(errorResponseWriter), BearerTokenAuthenticationFilter.class);
 		return http.build();
 	}

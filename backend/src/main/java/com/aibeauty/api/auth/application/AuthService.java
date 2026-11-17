@@ -15,7 +15,7 @@ import com.aibeauty.api.auth.domain.RevokedReason;
 import com.aibeauty.api.auth.domain.UserConsent;
 import com.aibeauty.api.auth.domain.UserConsentRepository;
 import com.aibeauty.api.global.error.BusinessException;
-import com.aibeauty.api.global.error.ErrorCode;
+import com.aibeauty.api.auth.domain.AuthErrorCode;
 import com.aibeauty.api.global.security.AccessTokenProvider;
 import com.aibeauty.api.global.security.AuthProperties;
 import com.aibeauty.api.user.domain.User;
@@ -63,11 +63,11 @@ public class AuthService {
 	@Transactional
 	public AuthResult signup(SignupCommand command) {
 		if (!command.agreedTerms() || !command.agreedPrivacy() || !command.agreedSkinData()) {
-			throw new BusinessException(ErrorCode.REQUIRED_CONSENT_MISSING);
+			throw new BusinessException(AuthErrorCode.REQUIRED_CONSENT_MISSING);
 		}
 		String email = normalizeEmail(command.email());
 		if (userRepository.existsByEmail(email)) {
-			throw new BusinessException(ErrorCode.EMAIL_DUPLICATED);
+			throw new BusinessException(AuthErrorCode.EMAIL_DUPLICATED);
 		}
 
 		Instant now = clock.instant();
@@ -78,7 +78,7 @@ public class AuthService {
 		}
 		catch (DataIntegrityViolationException e) {
 			// 중복 확인과 저장 사이에 같은 이메일로 동시에 가입한 경우
-			throw new BusinessException(ErrorCode.EMAIL_DUPLICATED);
+			throw new BusinessException(AuthErrorCode.EMAIL_DUPLICATED);
 		}
 
 		String version = properties.termsVersion();
@@ -100,14 +100,14 @@ public class AuthService {
 		User user = userRepository.findByEmail(normalizeEmail(rawEmail)).orElse(null);
 		if (user == null) {
 			passwordEncoder.matches(password, dummyPasswordHash);
-			throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+			throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
 		}
 		if (user.isLocked(now)) {
-			throw new BusinessException(ErrorCode.LOGIN_LOCKED);
+			throw new BusinessException(AuthErrorCode.LOGIN_LOCKED);
 		}
 		if (!passwordEncoder.matches(password, user.getPasswordHash())) {
 			user.recordLoginFailure(properties.login().maxFailures(), properties.login().lockDuration(), now);
-			throw new BusinessException(user.isLocked(now) ? ErrorCode.LOGIN_LOCKED : ErrorCode.INVALID_CREDENTIALS);
+			throw new BusinessException(user.isLocked(now) ? AuthErrorCode.LOGIN_LOCKED : AuthErrorCode.INVALID_CREDENTIALS);
 		}
 		user.recordLoginSuccess(now);
 		return issueTokens(user);
@@ -116,7 +116,7 @@ public class AuthService {
 	@Transactional(noRollbackFor = BusinessException.class)
 	public AuthResult refresh(String refreshToken) {
 		if (refreshToken == null || refreshToken.isBlank()) {
-			throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
+			throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
 		}
 		RefreshTokenService.Rotated rotated = refreshTokenService.rotate(refreshToken);
 		return new AuthResult(rotated.user(), accessTokenProvider.issue(rotated.user()), rotated.refreshToken());

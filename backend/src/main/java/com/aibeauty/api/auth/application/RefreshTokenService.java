@@ -13,7 +13,7 @@ import com.aibeauty.api.auth.domain.RefreshToken;
 import com.aibeauty.api.auth.domain.RefreshTokenRepository;
 import com.aibeauty.api.auth.domain.RevokedReason;
 import com.aibeauty.api.global.error.BusinessException;
-import com.aibeauty.api.global.error.ErrorCode;
+import com.aibeauty.api.auth.domain.AuthErrorCode;
 import com.aibeauty.api.global.security.AuthProperties;
 import com.aibeauty.api.global.security.TokenGenerator;
 import com.aibeauty.api.user.domain.User;
@@ -51,15 +51,15 @@ public class RefreshTokenService {
 	public Rotated rotate(String rawToken) {
 		Instant now = clock.instant();
 		RefreshToken token = refreshTokenRepository.findByTokenHashForUpdate(TokenGenerator.hash(rawToken))
-			.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN));
+			.orElseThrow(() -> new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN));
 
 		if (token.isRevoked() || token.isExpired(now)) {
-			throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
+			throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
 		}
 		if (token.isUsed()) {
 			refreshTokenRepository.revokeFamily(token.getFamilyId(), RevokedReason.REUSE_DETECTED, now);
 			log.warn("Refresh Token 재사용 감지: userId={}, familyId={}", token.getUser().getId(), token.getFamilyId());
-			throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
+			throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
 		}
 
 		token.markUsed(now);

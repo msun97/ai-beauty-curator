@@ -48,4 +48,31 @@ export type ApiError = {
   code: string;
   message: string;
   fieldErrors: { field: string; message: string }[];
+  /** 문의 시 서버 로그를 찾기 위한 요청 추적 ID */
+  traceId: string | null;
 };
+
+const FALLBACK_ERROR: ApiError = {
+  code: "NETWORK_ERROR",
+  message: "연결이 원활하지 않아요. 잠시 후 다시 시도해 주세요.",
+  fieldErrors: [],
+  traceId: null,
+};
+
+/** 실패 응답을 공통 오류 형식으로 읽는다. 본문이 형식에 맞지 않으면(프록시 오류 등) 기본 문구를 쓴다. */
+export async function readApiError(res: Response): Promise<ApiError> {
+  try {
+    const body = (await res.json()) as Partial<ApiError>;
+    if (typeof body.code === "string" && typeof body.message === "string") {
+      return {
+        code: body.code,
+        message: body.message,
+        fieldErrors: body.fieldErrors ?? [],
+        traceId: body.traceId ?? res.headers.get("X-Request-Id"),
+      };
+    }
+  } catch {
+    // JSON이 아닌 응답
+  }
+  return { ...FALLBACK_ERROR, traceId: res.headers.get("X-Request-Id") };
+}

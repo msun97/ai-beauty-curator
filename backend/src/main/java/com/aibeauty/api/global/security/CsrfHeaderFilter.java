@@ -5,7 +5,7 @@ import java.util.Set;
 
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.aibeauty.api.global.error.ErrorCode;
+import com.aibeauty.api.global.error.CommonErrorCode;
 import com.aibeauty.api.global.error.ErrorResponseWriter;
 
 import jakarta.servlet.FilterChain;
@@ -34,7 +34,7 @@ public class CsrfHeaderFilter extends OncePerRequestFilter {
 			throws ServletException, IOException {
 		String header = request.getHeader(HEADER);
 		if (UNSAFE_METHODS.contains(request.getMethod()) && (header == null || header.isBlank())) {
-			errorResponseWriter.write(response, ErrorCode.CSRF_HEADER_MISSING);
+			errorResponseWriter.write(response, CommonErrorCode.CSRF_HEADER_MISSING);
 			return;
 		}
 		chain.doFilter(request, response);
