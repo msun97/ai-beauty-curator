@@ -1,0 +1,60 @@
+package com.aibeauty.api.global.error;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+	@ExceptionHandler(BusinessException.class)
+	public ResponseEntity<ErrorResponse> handleBusiness(BusinessException e) {
+		return toResponse(e.errorCode(), ErrorResponse.of(e.errorCode()));
+	}
+
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
+		List<ErrorResponse.FieldError> fieldErrors = e.getBindingResult().getFieldErrors().stream()
+			.map(error -> new ErrorResponse.FieldError(error.getField(), error.getDefaultMessage()))
+			.toList();
+		return toResponse(ErrorCode.INVALID_INPUT, ErrorResponse.of(ErrorCode.INVALID_INPUT, fieldErrors));
+	}
+
+	@ExceptionHandler({ HttpMessageNotReadableException.class, MissingServletRequestParameterException.class,
+			HandlerMethodValidationException.class })
+	public ResponseEntity<ErrorResponse> handleBadRequest(Exception e) {
+		return toResponse(ErrorCode.INVALID_INPUT, ErrorResponse.of(ErrorCode.INVALID_INPUT));
+	}
+
+	@ExceptionHandler(NoResourceFoundException.class)
+	public ResponseEntity<ErrorResponse> handleNotFound(NoResourceFoundException e) {
+		return toResponse(ErrorCode.NOT_FOUND, ErrorResponse.of(ErrorCode.NOT_FOUND));
+	}
+
+	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+	public ResponseEntity<ErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException e) {
+		return toResponse(ErrorCode.METHOD_NOT_ALLOWED, ErrorResponse.of(ErrorCode.METHOD_NOT_ALLOWED));
+	}
+
+	@ExceptionHandler(Exception.class)
+	public ResponseEntity<ErrorResponse> handleUnexpected(Exception e) {
+		log.error("처리되지 않은 예외", e);
+		return toResponse(ErrorCode.INTERNAL_ERROR, ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
+	}
+
+	private ResponseEntity<ErrorResponse> toResponse(ErrorCode errorCode, ErrorResponse body) {
+		return ResponseEntity.status(errorCode.status()).body(body);
+	}
+}
