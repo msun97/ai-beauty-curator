@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.aibeauty.api.auth.api.dto.AuthUserResponse;
 import com.aibeauty.api.global.error.BusinessException;
-import com.aibeauty.api.global.error.ErrorCode;
+import com.aibeauty.api.global.error.CommonErrorCode;
 import com.aibeauty.api.user.domain.UserRepository;
 
 @RestController
@@ -28,6 +28,6 @@ public class UserController {
 		return userRepository.findById(userId)
 			.map(AuthUserResponse::from)
 			// 토큰은 유효하지만 탈퇴 등으로 계정이 없는 경우
-			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+			.orElseThrow(() -> new BusinessException(CommonErrorCode.UNAUTHORIZED));
 	}
 }

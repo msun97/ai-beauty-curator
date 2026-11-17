@@ -19,6 +19,11 @@ spring:
 server:
   port: ${PORT:8090}
 
+logging:
+  pattern:
+    # 모든 로그 줄에 요청 추적 ID를 남긴다 (NFR-REL-04, TraceIdFilter)
+    correlation: "[%X{traceId:-}] "
+
 management:
   endpoints:
     web:

@@ -11,7 +11,7 @@ import com.aibeauty.api.auth.domain.PasswordResetToken;
 import com.aibeauty.api.auth.domain.PasswordResetTokenRepository;
 import com.aibeauty.api.auth.domain.RevokedReason;
 import com.aibeauty.api.global.error.BusinessException;
-import com.aibeauty.api.global.error.ErrorCode;
+import com.aibeauty.api.auth.domain.AuthErrorCode;
 import com.aibeauty.api.global.security.AuthProperties;
 import com.aibeauty.api.global.security.TokenGenerator;
 import com.aibeauty.api.user.domain.User;
@@ -68,7 +68,7 @@ public class PasswordResetService {
 		PasswordResetToken token = passwordResetTokenRepository
 			.findByTokenHashForUpdate(TokenGenerator.hash(rawToken))
 			.filter(t -> t.isUsable(now))
-			.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_RESET_TOKEN));
+			.orElseThrow(() -> new BusinessException(AuthErrorCode.INVALID_RESET_TOKEN));
 
 		token.markUsed(now);
 		User user = token.getUser();
