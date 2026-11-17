@@ -1,0 +1,9 @@
+# 로컬 개발용 설정 (SPRING_PROFILES_ACTIVE=local)
+spring:
+  jpa:
+    show-sql: true
+
+management:
+  endpoint:
+    health:
+      show-details: always

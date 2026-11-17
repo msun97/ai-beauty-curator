@@ -1,0 +1,19 @@
+# 환경 변수 (비밀 정보)
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# 문서 변환 결과물(원고는 md로 관리)
+~$*.docx
+
+# 로컬 작업용 문서 (기획·설계 문서는 저장소에 올리지 않음)
+/AI_Beauty_Curator_*.md
+/AI_Beauty_Curator_*.docx
+/FigmaMake_*.md

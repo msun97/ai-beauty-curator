@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* 디자인 토큰 (Figma 화면 설계의 컬러와 맞춤) */
+@theme {
+  --color-brand: #b4466e;
+  --color-brand-light: #f9eef2;
+  --color-ink: #222222;
+  --font-sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
