@@ -29,6 +29,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover", // 아이폰 홈 인디케이터 영역(safe-area-inset)을 계산할 수 있게 함
   themeColor: "#B4466E",
 };
 
