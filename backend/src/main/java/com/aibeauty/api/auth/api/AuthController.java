@@ -11,12 +11,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.aibeauty.api.auth.api.dto.AuthUserResponse;
-import com.aibeauty.api.auth.api.dto.EmailAvailabilityResponse;
-import com.aibeauty.api.auth.api.dto.LoginRequest;
-import com.aibeauty.api.auth.api.dto.PasswordResetConfirmRequest;
-import com.aibeauty.api.auth.api.dto.PasswordResetRequest;
-import com.aibeauty.api.auth.api.dto.SignupRequest;
+import com.aibeauty.api.auth.api.dto.ResAuthUserDTO;
+import com.aibeauty.api.auth.api.dto.ResEmailAvailabilityDTO;
+import com.aibeauty.api.auth.api.dto.ReqLoginDTO;
+import com.aibeauty.api.auth.api.dto.ReqPasswordResetConfirmDTO;
+import com.aibeauty.api.auth.api.dto.ReqPasswordResetDTO;
+import com.aibeauty.api.auth.api.dto.ReqSignupDTO;
 import com.aibeauty.api.auth.application.AuthService;
 import com.aibeauty.api.auth.application.AuthService.AuthResult;
 import com.aibeauty.api.auth.application.PasswordResetService;
@@ -48,25 +48,25 @@ public class AuthController {
 	}
 
 	@GetMapping("/email-availability")
-	public EmailAvailabilityResponse emailAvailability(
+	public ResEmailAvailabilityDTO emailAvailability(
 			@RequestParam @NotBlank @Email(message = "이메일 형식이 올바르지 않아요.") String email) {
-		return new EmailAvailabilityResponse(authService.isEmailAvailable(email));
+		return new ResEmailAvailabilityDTO(authService.isEmailAvailable(email));
 	}
 
 	@PostMapping("/signup")
-	public ResponseEntity<AuthUserResponse> signup(@Valid @RequestBody SignupRequest request,
-			HttpServletResponse response) {
-		AuthResult result = authService.signup(request.toCommand());
-		return ResponseEntity.status(HttpStatus.CREATED).body(withCookies(result, response));
+	public ResponseEntity<ResAuthUserDTO> signup(@Valid @RequestBody ReqSignupDTO reqSignupDTO,
+			HttpServletResponse httpServletResponse) {
+		AuthResult result = authService.signup(reqSignupDTO.toCommand());
+		return ResponseEntity.status(HttpStatus.CREATED).body(withCookies(result, httpServletResponse));
 	}
 
 	@PostMapping("/login")
-	public AuthUserResponse login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+	public ResAuthUserDTO login(@Valid @RequestBody ReqLoginDTO request, HttpServletResponse response) {
 		return withCookies(authService.login(request.email(), request.password()), response);
 	}
 
 	@PostMapping("/refresh")
-	public AuthUserResponse refresh(
+	public ResAuthUserDTO refresh(
 			@CookieValue(name = AuthCookies.REFRESH_TOKEN, required = false) String refreshToken,
 			HttpServletResponse response) {
 		try {
@@ -90,20 +90,20 @@ public class AuthController {
 	/** 가입 여부와 관계없이 항상 같은 응답을 반환한다 (FR-AUTH-05). */
 	@PostMapping("/password-reset/request")
 	@ResponseStatus(HttpStatus.ACCEPTED)
-	public void requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+	public void requestPasswordReset(@Valid @RequestBody ReqPasswordResetDTO request) {
 		passwordResetService.request(request.email());
 	}
 
 	@PostMapping("/password-reset/confirm")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest request,
+	public void confirmPasswordReset(@Valid @RequestBody ReqPasswordResetConfirmDTO request,
 			HttpServletResponse response) {
 		passwordResetService.confirm(request.token(), request.newPassword());
 		authCookies.clear(response);
 	}
 
-	private AuthUserResponse withCookies(AuthResult result, HttpServletResponse response) {
+	private ResAuthUserDTO withCookies(AuthResult result, HttpServletResponse response) {
 		authCookies.write(response, result.accessToken(), result.refreshToken());
-		return AuthUserResponse.from(result.user());
+		return ResAuthUserDTO.from(result.user());
 	}
 }

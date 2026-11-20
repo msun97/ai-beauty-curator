@@ -12,17 +12,17 @@ import com.aibeauty.api.global.trace.TraceIdFilter;
  * @param fieldErrors 입력값 오류 목록 (없으면 빈 배열)
  * @param traceId 요청 추적 ID. 사용자가 문의할 때 이 값으로 서버 로그를 찾는다 (NFR-REL-04)
  */
-public record ErrorResponse(String code, String message, List<FieldError> fieldErrors, String traceId) {
+public record ResErrorDTO(String code, String message, List<FieldError> fieldErrors, String traceId) {
 
 	public record FieldError(String field, String message) {
 	}
 
-	public static ErrorResponse of(ErrorCode errorCode) {
+	public static ResErrorDTO of(ErrorCode errorCode) {
 		return of(errorCode, List.of());
 	}
 
-	public static ErrorResponse of(ErrorCode errorCode, List<FieldError> fieldErrors) {
-		return new ErrorResponse(errorCode.code(), errorCode.message(), List.copyOf(fieldErrors),
+	public static ResErrorDTO of(ErrorCode errorCode, List<FieldError> fieldErrors) {
+		return new ResErrorDTO(errorCode.code(), errorCode.message(), List.copyOf(fieldErrors),
 				TraceIdFilter.currentTraceId());
 	}
 }

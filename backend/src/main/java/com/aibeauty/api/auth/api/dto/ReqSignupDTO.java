@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-public record SignupRequest(
+public record ReqSignupDTO(
 		@NotBlank(message = "이메일을 입력해 주세요.")
 		@Email(message = "이메일 형식이 올바르지 않아요.")
 		@Size(max = 254, message = "이메일이 너무 길어요.")

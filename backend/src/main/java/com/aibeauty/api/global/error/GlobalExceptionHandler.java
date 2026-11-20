@@ -22,7 +22,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import com.aibeauty.api.global.error.ErrorResponse.FieldError;
+import com.aibeauty.api.global.error.ResErrorDTO.FieldError;
 
 /**
  * 컨트롤러에서 발생한 예외를 공통 오류 응답으로 변환한다.
@@ -36,7 +36,7 @@ public class GlobalExceptionHandler {
 	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
 	@ExceptionHandler(BusinessException.class)
-	public ResponseEntity<ErrorResponse> handleBusiness(BusinessException e) {
+	public ResponseEntity<ResErrorDTO> handleBusiness(BusinessException e) {
 		ErrorCode code = e.errorCode();
 		if (code.status().is5xxServerError()) {
 			log.error("비즈니스 오류: code={}, detail={}", code.code(), e.getMessage(), e);
@@ -49,7 +49,7 @@ public class GlobalExceptionHandler {
 
 	/** @RequestBody 검증 실패 */
 	@ExceptionHandler(MethodArgumentNotValidException.class)
-	public ResponseEntity<ErrorResponse> handleBodyValidation(MethodArgumentNotValidException e) {
+	public ResponseEntity<ResErrorDTO> handleBodyValidation(MethodArgumentNotValidException e) {
 		List<FieldError> fieldErrors = e.getBindingResult().getFieldErrors().stream()
 			.map(error -> new FieldError(error.getField(), error.getDefaultMessage()))
 			.toList();
@@ -58,7 +58,7 @@ public class GlobalExceptionHandler {
 
 	/** @RequestParam, @PathVariable 등 메서드 파라미터 검증 실패 */
 	@ExceptionHandler(HandlerMethodValidationException.class)
-	public ResponseEntity<ErrorResponse> handleParameterValidation(HandlerMethodValidationException e) {
+	public ResponseEntity<ResErrorDTO> handleParameterValidation(HandlerMethodValidationException e) {
 		List<FieldError> fieldErrors = e.getParameterValidationResults().stream()
 			.flatMap(result -> result.getResolvableErrors().stream()
 				.map(error -> new FieldError(result.getMethodParameter().getParameterName(),
@@ -69,80 +69,80 @@ public class GlobalExceptionHandler {
 
 	/** 숫자 자리에 문자가 오는 등 타입 변환 실패 */
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
-	public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+	public ResponseEntity<ResErrorDTO> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
 		return clientError(CommonErrorCode.INVALID_TYPE,
 				List.of(new FieldError(e.getName(), CommonErrorCode.INVALID_TYPE.message())), e);
 	}
 
 	@ExceptionHandler(MissingServletRequestParameterException.class)
-	public ResponseEntity<ErrorResponse> handleMissingParameter(MissingServletRequestParameterException e) {
+	public ResponseEntity<ResErrorDTO> handleMissingParameter(MissingServletRequestParameterException e) {
 		return clientError(CommonErrorCode.INVALID_INPUT,
 				List.of(new FieldError(e.getParameterName(), "필수 값이에요.")), e);
 	}
 
 	@ExceptionHandler(MissingRequestHeaderException.class)
-	public ResponseEntity<ErrorResponse> handleMissingHeader(MissingRequestHeaderException e) {
+	public ResponseEntity<ResErrorDTO> handleMissingHeader(MissingRequestHeaderException e) {
 		return clientError(CommonErrorCode.INVALID_INPUT, List.of(), e);
 	}
 
 	/** JSON 문법 오류, 본문 누락, enum 값 오류 등 */
 	@ExceptionHandler(HttpMessageNotReadableException.class)
-	public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException e) {
+	public ResponseEntity<ResErrorDTO> handleUnreadable(HttpMessageNotReadableException e) {
 		return clientError(CommonErrorCode.INVALID_INPUT, List.of(), e);
 	}
 
 	@ExceptionHandler(HttpMediaTypeNotSupportedException.class)
-	public ResponseEntity<ErrorResponse> handleMediaType(HttpMediaTypeNotSupportedException e) {
+	public ResponseEntity<ResErrorDTO> handleMediaType(HttpMediaTypeNotSupportedException e) {
 		return clientError(CommonErrorCode.UNSUPPORTED_MEDIA_TYPE, List.of(), e);
 	}
 
 	@ExceptionHandler(NoResourceFoundException.class)
-	public ResponseEntity<ErrorResponse> handleNotFound(NoResourceFoundException e) {
+	public ResponseEntity<ResErrorDTO> handleNotFound(NoResourceFoundException e) {
 		return clientError(CommonErrorCode.NOT_FOUND, List.of(), e);
 	}
 
 	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-	public ResponseEntity<ErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException e) {
+	public ResponseEntity<ResErrorDTO> handleMethodNotAllowed(HttpRequestMethodNotSupportedException e) {
 		log.debug("클라이언트 오류: {}", e.getMessage());
 		ResponseEntity.BodyBuilder builder = ResponseEntity.status(CommonErrorCode.METHOD_NOT_ALLOWED.status());
 		if (e.getSupportedHttpMethods() != null) {
 			builder.header(HttpHeaders.ALLOW, e.getSupportedHttpMethods().stream()
 				.map(Object::toString).reduce((a, b) -> a + ", " + b).orElse(""));
 		}
-		return builder.body(ErrorResponse.of(CommonErrorCode.METHOD_NOT_ALLOWED));
+		return builder.body(ResErrorDTO.of(CommonErrorCode.METHOD_NOT_ALLOWED));
 	}
 
 	/** 동시 수정(낙관적 락) 또는 유니크 제약 위반. 원인 파악을 위해 WARN으로 남긴다. */
 	@ExceptionHandler({ OptimisticLockingFailureException.class, DataIntegrityViolationException.class })
-	public ResponseEntity<ErrorResponse> handleConflict(RuntimeException e) {
+	public ResponseEntity<ResErrorDTO> handleConflict(RuntimeException e) {
 		log.warn("데이터 충돌: {}", e.getClass().getSimpleName(), e);
 		return respond(CommonErrorCode.CONFLICT, List.of());
 	}
 
 	/** 메서드 보안(@PreAuthorize 등)에서 발생하는 인증·인가 예외 */
 	@ExceptionHandler(AccessDeniedException.class)
-	public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException e) {
+	public ResponseEntity<ResErrorDTO> handleAccessDenied(AccessDeniedException e) {
 		return clientError(CommonErrorCode.FORBIDDEN, List.of(), e);
 	}
 
 	@ExceptionHandler(AuthenticationException.class)
-	public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException e) {
+	public ResponseEntity<ResErrorDTO> handleAuthentication(AuthenticationException e) {
 		return clientError(CommonErrorCode.UNAUTHORIZED, List.of(), e);
 	}
 
 	@ExceptionHandler(Exception.class)
-	public ResponseEntity<ErrorResponse> handleUnexpected(Exception e) {
+	public ResponseEntity<ResErrorDTO> handleUnexpected(Exception e) {
 		log.error("처리되지 않은 예외", e);
 		return respond(CommonErrorCode.INTERNAL_ERROR, List.of());
 	}
 
-	private ResponseEntity<ErrorResponse> clientError(ErrorCode code, List<FieldError> fieldErrors, Exception e) {
+	private ResponseEntity<ResErrorDTO> clientError(ErrorCode code, List<FieldError> fieldErrors, Exception e) {
 		log.debug("클라이언트 오류: code={}, exception={}, message={}", code.code(), e.getClass().getSimpleName(),
 				e.getMessage());
 		return respond(code, fieldErrors);
 	}
 
-	private ResponseEntity<ErrorResponse> respond(ErrorCode code, List<FieldError> fieldErrors) {
-		return ResponseEntity.status(code.status()).body(ErrorResponse.of(code, fieldErrors));
+	private ResponseEntity<ResErrorDTO> respond(ErrorCode code, List<FieldError> fieldErrors) {
+		return ResponseEntity.status(code.status()).body(ResErrorDTO.of(code, fieldErrors));
 	}
 }

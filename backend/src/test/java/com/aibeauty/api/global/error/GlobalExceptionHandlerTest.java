@@ -176,7 +176,7 @@ class GlobalExceptionHandlerTest {
 	@RequestMapping("/api/test-errors")
 	static class ErrorTestController {
 
-		record Body(@NotBlank(message = "이름을 입력해 주세요.") String name) {
+		record ReqTestBodyDTO(@NotBlank(message = "이름을 입력해 주세요.") String name) {
 		}
 
 		@GetMapping("/business")
@@ -185,7 +185,7 @@ class GlobalExceptionHandlerTest {
 		}
 
 		@PostMapping("/body")
-		void body(@Valid @RequestBody Body body) {
+		void body(@Valid @RequestBody ReqTestBodyDTO body) {
 		}
 
 		@GetMapping("/param")

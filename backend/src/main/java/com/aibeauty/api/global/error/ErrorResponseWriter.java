@@ -25,6 +25,6 @@ public class ErrorResponseWriter {
 		response.setStatus(errorCode.status().value());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 		response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-		jsonMapper.writeValue(response.getOutputStream(), ErrorResponse.of(errorCode));
+		jsonMapper.writeValue(response.getOutputStream(), ResErrorDTO.of(errorCode));
 	}
 }
