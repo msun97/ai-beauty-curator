@@ -16,9 +16,9 @@ import jakarta.servlet.http.HttpServletRequest;
 public class ApiErrorController implements ErrorController {
 
 	@RequestMapping("${server.error.path:/error}")
-	public ResponseEntity<ErrorResponse> error(HttpServletRequest request) {
+	public ResponseEntity<ResErrorDTO> error(HttpServletRequest request) {
 		Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
 		CommonErrorCode code = CommonErrorCode.fromStatus(status instanceof Integer value ? value : 500);
-		return ResponseEntity.status(code.status()).body(ErrorResponse.of(code));
+		return ResponseEntity.status(code.status()).body(ResErrorDTO.of(code));
 	}
 }

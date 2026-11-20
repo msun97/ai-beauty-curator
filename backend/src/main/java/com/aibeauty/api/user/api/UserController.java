@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.aibeauty.api.auth.api.dto.AuthUserResponse;
+import com.aibeauty.api.auth.api.dto.ResAuthUserDTO;
 import com.aibeauty.api.global.error.BusinessException;
 import com.aibeauty.api.global.error.CommonErrorCode;
 import com.aibeauty.api.user.domain.UserRepository;
@@ -23,10 +23,10 @@ public class UserController {
 
 	/** 로그인한 사용자 정보. 토큰의 sub(사용자 ID)로 조회한다. */
 	@GetMapping("/me")
-	public AuthUserResponse me(@AuthenticationPrincipal Jwt jwt) {
+	public ResAuthUserDTO me(@AuthenticationPrincipal Jwt jwt) {
 		Long userId = Long.valueOf(jwt.getSubject());
 		return userRepository.findById(userId)
-			.map(AuthUserResponse::from)
+			.map(ResAuthUserDTO::from)
 			// 토큰은 유효하지만 탈퇴 등으로 계정이 없는 경우
 			.orElseThrow(() -> new BusinessException(CommonErrorCode.UNAUTHORIZED));
 	}
