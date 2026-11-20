@@ -84,3 +84,30 @@ export async function readBody<T>(res: Response): Promise<T> {
   const text = await res.text();
   return (text ? JSON.parse(text) : undefined) as T;
 }
+
+// --- 화면 표시용 -------------------------------------------------------------
+
+export const GENERIC_ERROR_MESSAGE = "일시적인 문제가 생겼어요. 잠시 후 다시 시도해 주세요.";
+
+export type ErrorDisplay = {
+  message: string;
+  /** 문의할 때 알려줄 식별자. API 오류는 요청 추적 ID, 서버 컴포넌트 오류는 Next.js digest. */
+  traceId: string | null;
+};
+
+/**
+ * 어떤 값이 throw 되었든 사용자에게 보여줄 문구와 식별자로 바꾼다.
+ * - ApiError: 백엔드가 준 문구(사용자용으로 작성됨)와 traceId를 그대로 쓴다.
+ * - 그 밖의 오류: 내부 메시지가 노출되지 않게 기본 문구를 쓴다.
+ *   서버 컴포넌트 오류는 운영 환경에서 digest만 전달되므로 이를 식별자로 쓴다.
+ */
+export function describeError(error: unknown): ErrorDisplay {
+  if (error instanceof ApiError) {
+    return { message: error.message, traceId: error.traceId };
+  }
+  const digest =
+    typeof error === "object" && error !== null && "digest" in error && typeof error.digest === "string"
+      ? error.digest
+      : null;
+  return { message: GENERIC_ERROR_MESSAGE, traceId: digest };
+}
