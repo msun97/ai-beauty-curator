@@ -69,7 +69,7 @@ npm run dev
 cd backend && ./mvnw test
 
 # 프론트엔드
-cd frontend && npm run lint && npm run build
+cd frontend && npm run lint && npm test && npm run build
 ```
 
 ## 환경 변수
