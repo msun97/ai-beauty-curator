@@ -21,7 +21,7 @@ async function ApiStatus() {
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-app flex-1 flex-col justify-center gap-6 px-screen py-16">
+    <main className="flex flex-1 flex-col justify-center gap-6 px-screen py-16">
       <Logo className="text-3xl" />
       <p className="font-display text-2xs font-bold tracking-widest text-brand">BEAUTY TREND, FOR YOU</p>
       <h1 className="text-2xl font-bold">
