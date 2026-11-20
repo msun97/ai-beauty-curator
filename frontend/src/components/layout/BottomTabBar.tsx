@@ -13,6 +13,7 @@ export function BottomTabBar() {
   return (
     <nav
       aria-label="주요 메뉴"
+      data-tab-bar
       className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-app border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(66,35,45,0.04)] backdrop-blur-md"
     >
       <ul className="grid h-tab-bar grid-cols-5 px-2.5">

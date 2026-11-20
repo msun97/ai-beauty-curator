@@ -91,4 +91,23 @@
     font-family: var(--font-sans);
     font-synthesis: none;
   }
+
+  /* 하단 탭 바가 있는 화면에서는 토스트를 탭 바 위로 올린다 */
+  :root:has([data-tab-bar]) {
+    --toast-offset: var(--spacing-tab-bar);
+  }
+}
+
+/* 토스트 등장 효과. 움직임 줄이기 설정을 켠 사용자에게는 적용하지 않는다 */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast-enter {
+    animation: toast-in 180ms ease-out;
+  }
 }
