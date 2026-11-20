@@ -1,4 +1,4 @@
-# AI 퍼스널 뷰티 큐레이션 플랫폼
+# pickly
 
 > 요즘 뜨는 그 제품, 내 피부에도 맞을까?
 
@@ -11,7 +11,7 @@
 | Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4 |
 | Backend | Java 21, Spring Boot 4.1, Spring Data JPA, Flyway, Maven |
 | Database | PostgreSQL 17 (로컬: Docker, 운영: Neon) |
-| Test | JUnit 5, Testcontainers |
+| Test | JUnit 5, Testcontainers (백엔드) / Vitest (프론트엔드) |
 
 기술 선택 이유는 [`docs/decisions`](docs/decisions)의 ADR 문서에 정리했습니다.
 
@@ -21,7 +21,9 @@
 .
 ├── frontend/            # Next.js 앱
 ├── backend/             # Spring Boot API
-├── docs/decisions/      # 기술 의사결정 기록(ADR)
+├── docs/
+│   ├── decisions/       # 기술 의사결정 기록(ADR)
+│   └── ERD.md           # 데이터베이스 설계
 └── docker-compose.yml   # 로컬 PostgreSQL
 ```
 
