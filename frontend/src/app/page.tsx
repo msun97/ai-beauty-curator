@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { getApiHealth, type ApiHealth } from "@/lib/api";
+import { getApiHealth, type ApiHealth } from "@/lib/api/server";
 
 const STATUS_LABEL: Record<ApiHealth, string> = {
   UP: "정상 연결",
