@@ -2,7 +2,7 @@
 
 - 기준 문서: 요구사항 명세서 (FR 61개, NFR 41개)
 - DB: PostgreSQL 17
-- 상태: 초안 (V2 마이그레이션 작성 전 검토용)
+- 상태: 확정 (마이그레이션 V2 회원·인증, V3~V7 나머지 테이블)
 
 ## 0. 설계 원칙
 
@@ -171,6 +171,7 @@ erDiagram
 | 선호·기피 동시 등록 방지 | PK를 `(user_id, ingredient_id)`로 두어 한 성분은 선호와 기피 중 하나만 가능 | FR-PRF-03 |
 | 개수 제한 | 고민 최대 3개, 기피 20개, 선호 10개는 애플리케이션에서 검증 | FR-PRF-01~03 |
 | 가입 전 프로필 | 비회원이 입력한 프로필은 DB에 저장하지 않고 브라우저에 임시 보관, 가입 완료 시 저장 | FR-PRF-05, NFR-PRIV-01 |
+| 기준 코드 | 화면 시안 기준으로 마이그레이션(V3)에서 함께 입력. 피부 고민 8개: `DRYNESS` 건조, `TROUBLE` 트러블, `OILINESS` 유분, `PORE` 모공, `DEAD_SKIN` 각질, `REDNESS` 붉은기, `ELASTICITY` 탄력, `DULLNESS` 칙칙함. 카테고리 6개: `TONER`, `SERUM`, `CREAM`, `SUNCARE`, `CLEANSING`, `MASK` | FR-PRF-01, FR-PRD-01 |
 | 프로필 변경 이력 | 별도 이력 테이블을 두지 않음. 추천 결과 재현에 필요한 프로필은 `recommendations.profile_snapshot`에 함께 저장 | FR-REC-07 |
 
 ## 4. 성분·상품
@@ -221,6 +222,7 @@ erDiagram
         timestamptz price_updated_at
         varchar ingredient_status "COMPLETE | INCOMPLETE"
         varchar status "ACTIVE | HIDDEN"
+        varchar source_url "상품 정보를 가져온 페이지"
         date source_collected_at
         timestamptz created_at
         timestamptz updated_at
@@ -241,7 +243,7 @@ erDiagram
     }
     data_sources {
         bigint id PK
-        varchar name
+        varchar name UK
         varchar source_type "PUBLIC_DATA | FILE | API | MANUAL"
         varchar url
         text usage_terms "이용 조건"
@@ -257,6 +259,8 @@ erDiagram
 | 데이터 부족 | 전성분이 불완전하면 `ingredient_status = INCOMPLETE`로 두고 궁합 대신 "데이터 부족" 표시 | FR-PRD-03 |
 | 궁합 점수 입력값 | 피부 타입 적합성은 `product_skin_types`, 피부 고민 관련성은 `product_concern_tags`로 판단. 상품 정보에서 운영자가 태깅 | 기획서 5.2 |
 | 가격 | 현재가와 갱신 시각만 저장하고 가격 이력은 MVP 범위에서 제외 | 기획서 6.2 |
+| 적재 기준 | `products (brand_id, name)` 유니크. 데이터 적재를 다시 실행하면 같은 상품은 새로 만들지 않고 갱신 | NFR-LEG-02 |
+| 상품별 출처 | `data_sources`는 출처 종류(예: 브랜드 공식몰), `products.source_url`은 실제로 정보를 가져온 상품 페이지 | FR-ADM-02 |
 
 ## 5. 리뷰·AI 분석
 
@@ -507,7 +511,7 @@ erDiagram
 
 | 항목 | 설계 내용 | 요구사항 |
 |---|---|---|
-| 제품·성분 대상 | `product_id`와 `ingredient_id` 중 정확히 하나만 값을 갖도록 CHECK 제약 (다형 ID 대신 FK 무결성 유지) | FR-TRD-05 |
+| 제품·성분 대상 | `product_id`와 `ingredient_id` 중 정확히 하나만 값을 갖도록 CHECK 제약 (다형 ID 대신 FK 무결성 유지). 보정용 기준 키워드(`is_anchor`)는 둘 다 비워 둠 | FR-TRD-05 |
 | 상대값 보정 | 원본 `raw_ratio`와 같은 요청의 `anchor_ratio`를 함께 저장해, 보정 방식이 바뀌어도 다시 수집하지 않고 재계산 | FR-TRD-06 |
 | 수집 실패 | 배치 단위로 상태와 오류를 기록하고, 실패 시 직전 스냅샷을 그대로 노출 | FR-ADM-09, NFR-REL-03 |
 | 중복 행동 1회 반영 | 집계 시 `(actor_key, 대상, action_type, 주)` 기준으로 중복 제거 | FR-TRD-03 |
@@ -562,4 +566,4 @@ erDiagram
 **남은 과제**
 - 만료·폐기된 `refresh_tokens` 정리 배치 (만료 후 30일 지난 행 삭제)
 - `product_actions` 데이터가 커지면 월 단위 파티셔닝 검토
-- 확정 후 Flyway `V2__create_core_tables.sql` 작성
+- ~~확정 후 Flyway 마이그레이션 작성~~ → V3(카탈로그) · V4(프로필) · V5(리뷰) · V6(추천) · V7(트렌드·운영)으로 작성 완료
