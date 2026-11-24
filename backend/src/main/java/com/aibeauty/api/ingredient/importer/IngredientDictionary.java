@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.aibeauty.api.ingredient.domain.IngredientNames;
+
 /**
  * 원천 데이터를 성분 사전(표준명 + 별칭)으로 정리한다. DB에 의존하지 않는 순수 변환이다.
  *

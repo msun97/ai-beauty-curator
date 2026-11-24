@@ -1,4 +1,4 @@
-package com.aibeauty.api.ingredient.importer;
+package com.aibeauty.api.ingredient.domain;
 
 import java.text.Normalizer;
 import java.util.ArrayList;

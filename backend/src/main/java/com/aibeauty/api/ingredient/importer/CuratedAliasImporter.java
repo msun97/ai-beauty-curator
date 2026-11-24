@@ -18,6 +18,8 @@ import org.springframework.core.io.Resource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aibeauty.api.ingredient.domain.IngredientNames;
+
 /**
  * 직접 지정한 별칭(seed/ingredient-aliases.tsv)을 반영한다.
  * 자동으로 만든 별칭과 비교용 값이 같으면 이 파일의 연결로 바꾼다.
