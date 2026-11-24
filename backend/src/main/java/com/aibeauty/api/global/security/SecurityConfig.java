@@ -50,8 +50,9 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
 				.requestMatchers("/api/admin/**").hasRole("ADMIN")
 				// 비회원 조회 API(트렌드·상품·성분·검색)는 각 기능 구현 시 여기에 permitAll로 추가한다
-				.requestMatchers(HttpMethod.GET, "/api/categories", "/api/products", "/api/products/*",
-						"/api/ingredients/*", "/api/ingredients/*/products").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/categories", "/api/brands", "/api/products", "/api/products/*",
+						"/api/ingredients/*", "/api/ingredients/*/products", "/api/search", "/api/search/autocomplete")
+					.permitAll()
 				.anyRequest().authenticated())
 			.oauth2ResourceServer(oauth2 -> oauth2
 				.bearerTokenResolver(new CookieBearerTokenResolver())

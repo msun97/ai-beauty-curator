@@ -49,7 +49,7 @@ public class ProductService {
 					.orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_INPUT, "category=" + categoryCode))
 					.getId();
 		}
-		return productCardQuery.find(new ProductCardQuery.Condition(categoryId, null), sort, page, size)
+		return productCardQuery.find(ProductCardQuery.Condition.all().withCategory(categoryId), sort, page, size)
 				.map(ResProductCardDTO::from);
 	}
 

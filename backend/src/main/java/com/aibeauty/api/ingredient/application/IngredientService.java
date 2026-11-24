@@ -1,6 +1,7 @@
 package com.aibeauty.api.ingredient.application;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,7 +59,7 @@ public class IngredientService {
 	/** 이 성분이 들어간 상품 (FR-ING-01) */
 	public ResPageDTO<ResProductCardDTO> products(long ingredientId, ProductSort sort, int page, int size) {
 		find(ingredientId);
-		return productCardQuery.find(new ProductCardQuery.Condition(null, ingredientId), sort, page, size)
+		return productCardQuery.find(ProductCardQuery.Condition.all().withIngredient(ingredientId), sort, page, size)
 				.map(ResProductCardDTO::from);
 	}
 
@@ -67,7 +68,16 @@ public class IngredientService {
 	 * 아니면 띄어쓰기·기호·대소문자를 무시하고 별칭과 비교한다.
 	 */
 	public ResIngredientLookupDTO lookup(String name) {
+		return findByName(name).orElseThrow(
+				() -> new BusinessException(CommonErrorCode.NOT_FOUND, "ingredientName=" + IngredientNames.clean(name)));
+	}
+
+	/** {@link #lookup(String)}과 같은 규칙. 없으면 빈 값 */
+	public Optional<ResIngredientLookupDTO> findByName(String name) {
 		String trimmed = IngredientNames.clean(name);
+		if (IngredientNames.normalize(trimmed).isEmpty()) {
+			return Optional.empty();
+		}
 		return ingredientRepository.findByStandardName(trimmed)
 				.map(ingredient -> new ResIngredientLookupDTO(ingredient.getId(), ingredient.getStandardName(),
 						ingredient.getStandardName(), MatchedBy.STANDARD_NAME))
@@ -83,8 +93,7 @@ public class IngredientService {
 									: alias.getAlias();
 							return new ResIngredientLookupDTO(ingredient.getId(), ingredient.getStandardName(),
 									matchedName, matchedBy);
-						}))
-				.orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND, "ingredientName=" + trimmed));
+						}));
 	}
 
 	private Ingredient find(long ingredientId) {

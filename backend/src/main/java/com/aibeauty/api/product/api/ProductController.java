@@ -9,9 +9,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.aibeauty.api.global.api.ResPageDTO;
+import com.aibeauty.api.product.api.dto.ResBrandDTO;
 import com.aibeauty.api.product.api.dto.ResCategoryDTO;
 import com.aibeauty.api.product.api.dto.ResProductCardDTO;
 import com.aibeauty.api.product.api.dto.ResProductDetailDTO;
+import com.aibeauty.api.product.application.BrandQuery;
 import com.aibeauty.api.product.application.ProductService;
 import com.aibeauty.api.product.application.ProductSort;
 
@@ -26,14 +28,22 @@ public class ProductController {
 	public static final int MAX_PAGE_SIZE = 50;
 
 	private final ProductService productService;
+	private final BrandQuery brandQuery;
 
-	public ProductController(ProductService productService) {
+	public ProductController(ProductService productService, BrandQuery brandQuery) {
 		this.productService = productService;
+		this.brandQuery = brandQuery;
 	}
 
 	@GetMapping("/categories")
 	public List<ResCategoryDTO> categories() {
 		return productService.categories();
+	}
+
+	/** 검색 필터의 브랜드 목록 (FR-SRC-02) */
+	@GetMapping("/brands")
+	public List<ResBrandDTO> brands() {
+		return brandQuery.visibleBrands();
 	}
 
 	/** FR-PRD-01. category를 빼면 전체 카테고리 */
