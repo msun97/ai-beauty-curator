@@ -79,4 +79,31 @@ class IngredientDictionaryTest {
 		assertThat(dictionary.aliases()).extracting(IngredientDictionary.Alias::normalizedAlias)
 				.containsExactly("정제수", "water", "물");
 	}
+
+	@Test
+	@DisplayName("표준명에서 개정 전 표기를 만들어 가장 낮은 우선순위로 등록한다")
+	void addsLegacySpellings() {
+		assertThat(IngredientDictionary.legacySpellings("다이프로필렌글라이콜"))
+				.containsExactlyInAnyOrder("다이프로필렌글리콜", "디프로필렌글라이콜", "디프로필렌글리콜");
+		assertThat(IngredientDictionary.legacySpellings("정제수")).isEmpty();
+
+		IngredientDictionary dictionary = IngredientDictionary.from(List.of(
+				item("부틸렌글라이콜", "Butylene Glycol", null)));
+		assertThat(dictionary.aliases()).extracting(IngredientDictionary.Alias::alias)
+				.containsExactly("부틸렌글라이콜", "Butylene Glycol", "부틸렌글리콜");
+	}
+
+	@Test
+	@DisplayName("옛 표기가 다른 성분의 표준명과 같으면 그 성분을 가리킨다")
+	void legacySpellingNeverOverridesStandardName() {
+		IngredientDictionary dictionary = IngredientDictionary.from(List.of(
+				item("메틸글루세스-10", null, null),
+				item("메칠글루세스-10", null, null)));
+
+		assertThat(dictionary.aliases())
+				.filteredOn(alias -> alias.normalizedAlias().equals("메칠글루세스10"))
+				.extracting(IngredientDictionary.Alias::standardName)
+				.containsExactly("메칠글루세스-10");
+		assertThat(dictionary.ambiguousAliases()).isEmpty();
+	}
 }

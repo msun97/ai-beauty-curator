@@ -14,7 +14,8 @@ import java.util.Set;
  * <p>별칭 규칙
  * <ul>
  * <li>표준명, 영문명, 이명을 모두 별칭으로 등록한다. 표준명도 넣어 띄어쓰기·기호 차이를 흡수한다.</li>
- * <li>같은 비교용 값이 여러 성분에 걸리면 우선순위(표준명 &gt; 영문명 &gt; 이명)가 높은 쪽을 택한다.</li>
+ * <li>표준명에서 옛 표기(예: 글라이콜→글리콜, 다이→디)를 만들어 별칭으로 추가한다. 개정 전 표기로 인쇄된 전성분을 매칭하기 위해서다.</li>
+ * <li>같은 비교용 값이 여러 성분에 걸리면 우선순위(표준명 &gt; 영문명 &gt; 이명 &gt; 옛 표기)가 높은 쪽을 택한다.</li>
  * <li>최고 우선순위에서도 여러 성분이 겹치면 어느 쪽에도 등록하지 않는다. 잘못된 매칭이 매칭 실패보다 해롭다.</li>
  * </ul>
  */
@@ -34,8 +35,19 @@ public final class IngredientDictionary {
 	}
 
 	private enum AliasKind {
-		STANDARD_NAME, ENGLISH_NAME, SYNONYM
+		STANDARD_NAME, ENGLISH_NAME, SYNONYM, LEGACY_SPELLING
 	}
+
+	/**
+	 * 현행 표기 → 개정 전 표기. 바꾼 결과가 다른 성분의 표준명과 같으면 우선순위에 따라 그 성분이 이긴다.
+	 */
+	private static final List<String[]> LEGACY_SPELLINGS = List.of(
+			new String[] { "글라이콜", "글리콜" },
+			new String[] { "트라이", "트리" },
+			new String[] { "다이", "디" },
+			new String[] { "에틸", "에칠" },
+			new String[] { "메틸", "메칠" },
+			new String[] { "하이알루로", "히알루로" });
 
 	private record Candidate(String standardName, String alias, AliasKind kind) {
 	}
@@ -79,6 +91,8 @@ public final class IngredientDictionary {
 			englishNames.forEach(name -> addCandidate(candidates, standardName, name, AliasKind.ENGLISH_NAME));
 			IngredientNames.split(item.synonyms())
 					.forEach(name -> addCandidate(candidates, standardName, name, AliasKind.SYNONYM));
+			legacySpellings(standardName)
+					.forEach(name -> addCandidate(candidates, standardName, name, AliasKind.LEGACY_SPELLING));
 		}
 
 		List<Alias> aliases = new ArrayList<>();
@@ -98,6 +112,21 @@ public final class IngredientDictionary {
 
 		return new IngredientDictionary(List.copyOf(entries.values()), List.copyOf(aliases), List.copyOf(ambiguous),
 				skipped);
+	}
+
+	/** 규칙을 하나씩 적용한 표기와 모두 적용한 표기. 개정 전 전성분은 여러 표기가 섞여 있기도 하다. */
+	static Set<String> legacySpellings(String standardName) {
+		Set<String> variants = new LinkedHashSet<>();
+		String all = standardName;
+		for (String[] rule : LEGACY_SPELLINGS) {
+			if (standardName.contains(rule[0])) {
+				variants.add(standardName.replace(rule[0], rule[1]));
+			}
+			all = all.replace(rule[0], rule[1]);
+		}
+		variants.add(all);
+		variants.remove(standardName);
+		return variants;
 	}
 
 	private static void addCandidate(Map<String, List<Candidate>> candidates, String standardName, String alias,
