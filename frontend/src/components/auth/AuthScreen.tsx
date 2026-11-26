@@ -19,12 +19,3 @@ export function AuthScreen({ title, description, children }: AuthScreenProps) {
     </main>
   );
 }
-
-/** 폼을 만들기 전 임시 내용. 다음 단계에서 실제 입력 폼으로 교체한다. */
-export function FormPlaceholder() {
-  return (
-    <div className="rounded-card bg-surface-muted px-5 py-10 text-center text-sm text-muted">
-      입력 화면을 준비하고 있어요
-    </div>
-  );
-}
