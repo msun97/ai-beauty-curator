@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Noto_Sans_KR } from "next/font/google";
+import { SessionExpiryHandler } from "@/components/auth/SessionExpiryHandler";
 import { Toaster } from "@/components/ui/Toaster";
 import { SITE } from "@/lib/site";
 import "./globals.css";
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster />
+        <SessionExpiryHandler />
       </body>
     </html>
   );
