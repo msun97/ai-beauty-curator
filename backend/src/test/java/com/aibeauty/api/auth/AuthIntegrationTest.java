@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.ActiveProfiles;
@@ -40,6 +42,9 @@ import jakarta.servlet.http.Cookie;
 class AuthIntegrationTest {
 
 	private static final String PASSWORD = "password123";
+	/** 예전 경로 쿠키를 지우는 Set-Cookie인지 (이미 쓴 토큰이 먼저 전송되어 재사용으로 오인되는 것을 막음) */
+	private static final Predicate<String> LEGACY_REFRESH_EXPIRY =
+			h -> h.startsWith("refresh_token=;") && h.contains("Path=/api/auth;") && h.contains("Max-Age=0");
 	private static final String LOCKED_MESSAGE = "로그인을 5번 잘못 시도해서 10분 동안 로그인이 제한돼요. "
 			+ "10분 뒤에 다시 시도하거나, 비밀번호를 재설정하면 바로 로그인할 수 있어요.";
 
@@ -65,7 +70,10 @@ class AuthIntegrationTest {
 			assertThat(access).isNotNull();
 			assertThat(access.isHttpOnly()).isTrue();
 			assertThat(refresh).isNotNull();
-			assertThat(refresh.getPath()).isEqualTo("/api/auth");
+			// 액세스 토큰 만료 후 화면 이동 때 Next.js 서버가 재발급할 수 있도록 모든 경로로 보낸다 (FIX-002)
+			assertThat(refresh.getPath()).isEqualTo("/");
+			assertThat(refresh.isHttpOnly()).isTrue();
+			assertThat(response.getHeaders(HttpHeaders.SET_COOKIE)).anyMatch(LEGACY_REFRESH_EXPIRY);
 
 			mockMvc.perform(get("/api/users/me").cookie(access))
 				.andExpect(status().isOk())
@@ -220,9 +228,26 @@ class AuthIntegrationTest {
 		void logoutRevokesRefreshToken() throws Exception {
 			Cookie refreshCookie = signup(newEmail()).getResponse().getCookie(AuthCookies.REFRESH_TOKEN);
 
-			mockMvc.perform(post("/api/auth/logout").header("X-Requested-With", "fetch").cookie(refreshCookie))
-				.andExpect(status().isNoContent());
+			MockHttpServletResponse response = mockMvc
+				.perform(post("/api/auth/logout").header("X-Requested-With", "fetch").cookie(refreshCookie))
+				.andExpect(status().isNoContent())
+				.andReturn()
+				.getResponse();
+			// 새 경로(/)와 예전 경로(/api/auth)의 Refresh Token 쿠키를 모두 지운다
+			assertThat(response.getHeaders(HttpHeaders.SET_COOKIE))
+				.anyMatch(h -> h.startsWith("refresh_token=;") && h.contains("Path=/;") && h.contains("Max-Age=0"))
+				.anyMatch(LEGACY_REFRESH_EXPIRY);
 			refresh(refreshCookie).andExpect(status().isUnauthorized());
+		}
+
+		@Test
+		@DisplayName("재발급할 때도 예전 경로(/api/auth)의 Refresh Token 쿠키를 지운다")
+		void refreshExpiresLegacyCookie() throws Exception {
+			Cookie refreshCookie = signup(newEmail()).getResponse().getCookie(AuthCookies.REFRESH_TOKEN);
+
+			MockHttpServletResponse rotated = refresh(refreshCookie).andExpect(status().isOk()).andReturn().getResponse();
+			assertThat(rotated.getCookie(AuthCookies.REFRESH_TOKEN).getPath()).isEqualTo("/");
+			assertThat(rotated.getHeaders(HttpHeaders.SET_COOKIE)).anyMatch(LEGACY_REFRESH_EXPIRY);
 		}
 	}
 

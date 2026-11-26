@@ -1,5 +1,6 @@
 package com.aibeauty.api.auth.domain;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -69,6 +70,17 @@ public class RefreshToken {
 
 	public boolean isUsed() {
 		return usedAt != null;
+	}
+
+	/**
+	 * 사용된 지 grace 이내인지 (이미 사용된 토큰이 다시 왔을 때 탈취가 아닌 동시 요청으로 볼 수 있는지, FIX-003).
+	 * grace가 0이면 유예가 없으므로 항상 false (같은 시각에 들어온 요청도 재사용으로 본다).
+	 */
+	public boolean isUsedWithin(Duration grace, Instant now) {
+		if (usedAt == null || grace.isZero()) {
+			return false;
+		}
+		return !usedAt.plus(grace).isBefore(now);
 	}
 
 	public boolean isRevoked() {

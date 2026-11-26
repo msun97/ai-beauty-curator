@@ -11,10 +11,22 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.auth")
 public record AuthProperties(Jwt jwt, Cookie cookie, Login login, PasswordReset passwordReset, String termsVersion) {
 
-	public record Jwt(String secret, String issuer, Duration accessTokenTtl, Duration refreshTokenTtl) {
+	/**
+	 * refreshReuseGrace: 이미 사용된 Refresh Token이 다시 와도 탈취가 아닌 동시 요청으로 봐줄 시간 (FIX-003).
+	 * 화면 미리 불러오기·여러 탭에서 재발급이 겹칠 때 정상 사용자가 로그아웃되지 않게 한다.
+	 * 0이면 유예 없이 재사용을 바로 탈취로 판단한다(가장 엄격). 설정하지 않으면 0으로 본다.
+	 */
+	public record Jwt(String secret, String issuer, Duration accessTokenTtl, Duration refreshTokenTtl,
+			Duration refreshReuseGrace) {
 		public Jwt {
 			if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
 				throw new IllegalStateException("app.auth.jwt.secret(JWT_SECRET)는 32바이트 이상이어야 합니다.");
+			}
+			if (refreshReuseGrace == null) {
+				refreshReuseGrace = Duration.ZERO;
+			}
+			if (refreshReuseGrace.isNegative()) {
+				throw new IllegalStateException("app.auth.jwt.refresh-reuse-grace는 0 이상이어야 합니다.");
 			}
 		}
 	}
