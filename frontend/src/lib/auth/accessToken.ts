@@ -8,6 +8,12 @@
 
 export const ACCESS_TOKEN_COOKIE = "access_token";
 
+/**
+ * Refresh Token 쿠키 (14일). 백엔드가 모든 경로(/)로 보내므로 proxy도 읽을 수 있다 (FIX-002).
+ * 값은 DB에 저장된 무작위 문자열이라 프론트에서 해석하지 않고, 재발급 요청에 그대로 실어 보내기만 한다.
+ */
+export const REFRESH_TOKEN_COOKIE = "refresh_token";
+
 /** 서버와 브라우저 시계 차이를 감안해 만료 직전 토큰은 만료로 본다 */
 const CLOCK_SKEW_SECONDS = 10;
 
