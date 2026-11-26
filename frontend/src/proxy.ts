@@ -20,7 +20,9 @@ import { checkSession } from "@/lib/auth/session";
  *    세션 만료 처리(SessionExpiryHandler)로 로그인 화면에 보내진다.
  * 2) 로그인·가입·비밀번호 찾기: 이미 로그인했으면 홈(또는 ?next=)으로 보낸다.
  *    잘못 보내면 로그인 화면에 못 들어가므로, 쿠키가 살아 보일 때 백엔드에 한 번 확인한다.
- *    무효(401)면 쿠키를 지우고 화면을 보여준다.
+ *    액세스 토큰을 쓸 수 없지만(없음·만료·무효) 리프레시 쿠키가 있으면 대신 재발급해 보고(FIX-004),
+ *    성공하면 로그인한 사람이므로 새 쿠키와 함께 홈(또는 ?next=)으로 보낸다.
+ *    재발급도 거절되면 쿠키를 모두 지우고 화면을 보여준다.
  * - /reset-password는 로그인 중에도 메일 링크로 열 수 있어야 하므로 대상에서 뺀다.
  */
 export async function proxy(request: NextRequest) {
@@ -49,11 +51,27 @@ export async function proxy(request: NextRequest) {
     return result.status === "invalid" ? clearAuthCookies(toLogin()) : toLogin();
   }
 
+  // 로그인 화면에 돌아갈 곳(?next=)이 있었다면 그곳으로, 없으면 홈으로
+  const toNext = () =>
+    NextResponse.redirect(new URL(safeNextPath(request.nextUrl.searchParams.get("next")), request.url));
+
   const status = await checkSession(token, API_BASE_URL);
   if (status === "signed-in") {
-    // 로그인 화면에 돌아갈 곳(?next=)이 있었다면 그곳으로, 없으면 홈으로
-    const next = safeNextPath(request.nextUrl.searchParams.get("next"));
-    return NextResponse.redirect(new URL(next, request.url));
+    return toNext();
+  }
+
+  // 액세스 토큰을 쓸 수 없을 때만 재발급을 시도한다.
+  // (토큰은 살아 보이는데 백엔드에 연결할 수 없어 확인하지 못한 경우는 시도하지 않고 화면을 보여준다)
+  const accessUnusable = !isAccessTokenAlive(token) || status === "invalid";
+  const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
+  if (accessUnusable && refreshToken) {
+    const result = await refreshTokens(refreshToken, API_BASE_URL);
+    if (result.status === "refreshed") {
+      return appendSetCookies(toNext(), result.setCookies);
+    }
+    if (result.status === "invalid") {
+      return clearAuthCookies(NextResponse.next());
+    }
   }
 
   const response = NextResponse.next();
