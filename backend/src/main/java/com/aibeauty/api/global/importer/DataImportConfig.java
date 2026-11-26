@@ -21,6 +21,8 @@ import com.aibeauty.api.ingredient.importer.IngredientDictionaryWriter;
 import com.aibeauty.api.ingredient.importer.MfdsIngredientClient;
 import com.aibeauty.api.ingredient.importer.MfdsIngredientImporter;
 import com.aibeauty.api.ingredient.importer.MfdsIngredientProperties;
+import com.aibeauty.api.integrity.DataIntegrityChecker;
+import com.aibeauty.api.integrity.IntegrityReport;
 import com.aibeauty.api.product.importer.ProductSeedImporter;
 
 import tools.jackson.databind.json.JsonMapper;
@@ -30,8 +32,8 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <pre>
  * ./mvnw spring-boot:run -Dspring-boot.run.profiles=local,import
- * # 일부 작업만 실행
- * ./mvnw spring-boot:run -Dspring-boot.run.profiles=local,import -Dspring-boot.run.arguments=--app.import.jobs=products
+ * # 일부 작업만 실행 (예: 정합성 검사만)
+ * ./mvnw spring-boot:run -Dspring-boot.run.profiles=local,import -Dspring-boot.run.arguments=--app.import.jobs=data-check
  * </pre>
  */
 @Configuration(proxyBeanMethods = false)
@@ -39,11 +41,13 @@ import tools.jackson.databind.json.JsonMapper;
 @EnableConfigurationProperties(MfdsIngredientProperties.class)
 class DataImportConfig {
 
-	/** 실행 순서. 상품 전성분 매칭이 성분 사전과 별칭을 쓰므로 이 순서를 지킨다. */
+	/** 실행 순서. 상품 전성분 매칭이 성분 사전과 별칭을 쓰고, 정합성 검사는 적재가 끝난 뒤 실행한다. */
 	enum Job {
 		MFDS_INGREDIENTS("mfds-ingredients"),
 		INGREDIENT_ALIASES("ingredient-aliases"),
-		PRODUCTS("products");
+		PRODUCTS("products"),
+		/** 오류 수준 위반이 있으면 실패(종료 코드 1)로 끝난다 */
+		DATA_CHECK("data-check");
 
 		final String key;
 
@@ -81,9 +85,14 @@ class DataImportConfig {
 	}
 
 	@Bean
+	DataIntegrityChecker dataIntegrityChecker(JdbcTemplate jdbc, Clock clock) {
+		return new DataIntegrityChecker(jdbc, clock);
+	}
+
+	@Bean
 	ApplicationRunner dataImportRunner(MfdsIngredientImporter mfdsImporter, CuratedAliasImporter aliasImporter,
-			ProductSeedImporter productImporter,
-			@Value("${app.import.jobs:mfds-ingredients,ingredient-aliases,products}") List<String> jobs,
+			ProductSeedImporter productImporter, DataIntegrityChecker integrityChecker,
+			@Value("${app.import.jobs:mfds-ingredients,ingredient-aliases,products,data-check}") List<String> jobs,
 			ConfigurableApplicationContext context) {
 		return args -> {
 			int exitCode = 0;
@@ -101,6 +110,12 @@ class DataImportConfig {
 						case MFDS_INGREDIENTS -> mfdsImporter.run();
 						case INGREDIENT_ALIASES -> aliasImporter.run();
 						case PRODUCTS -> productImporter.run();
+						case DATA_CHECK -> {
+							IntegrityReport report = integrityChecker.check();
+							if (report.hasErrors()) {
+								throw new IllegalStateException("정합성 검사 오류 " + report.errorCount() + "종");
+							}
+						}
 					}
 				}
 			} catch (RuntimeException e) {
