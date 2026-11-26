@@ -48,6 +48,7 @@ app:
       issuer: aibeauty-api
       access-token-ttl: 15m
       refresh-token-ttl: 14d
+      refresh-reuse-grace: 10s          # 방금 사용된 Refresh Token이 다시 와도 동시 요청으로 봐줄 시간 (0s = 바로 탈취로 판단)
     cookie:
       secure: ${AUTH_COOKIE_SECURE:true}
     login:

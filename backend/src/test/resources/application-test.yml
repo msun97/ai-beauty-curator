@@ -3,6 +3,8 @@ app:
   auth:
     jwt:
       secret: test-only-secret-0123456789-0123456789-abcdef
+      # 기존 테스트는 재사용을 바로 탈취로 판단하는 엄격한 동작을 확인한다. 유예 동작은 RefreshReuseGraceIntegrationTest에서 확인
+      refresh-reuse-grace: 0s
     cookie:
       secure: false
   mail:

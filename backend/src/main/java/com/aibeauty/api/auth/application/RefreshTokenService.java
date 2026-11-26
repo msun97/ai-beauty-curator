@@ -45,6 +45,9 @@ public class RefreshTokenService {
 	/**
 	 * 토큰 회전: 사용한 토큰은 사용 처리하고 같은 묶음으로 새 토큰을 발급한다.
 	 * 이미 사용된 토큰이 다시 들어오면 탈취로 보고 묶음 전체를 폐기한다.
+	 * 단, 사용된 지 유예 시간(refresh-reuse-grace) 이내면 화면 미리 불러오기·여러 탭에서 겹친
+	 * 동시 요청으로 보고 같은 묶음으로 새 토큰을 발급한다 (FIX-003).
+	 * 동시 요청은 행 잠금(FOR UPDATE)으로 순서대로 처리되므로, 뒤 요청은 앞 요청이 남긴 사용 시각을 본다.
 	 * 폐기 결과는 예외를 던져도 저장되어야 하므로 BusinessException에는 롤백하지 않는다.
 	 */
 	@Transactional(noRollbackFor = BusinessException.class)
@@ -57,6 +60,12 @@ public class RefreshTokenService {
 			throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
 		}
 		if (token.isUsed()) {
+			if (token.isUsedWithin(properties.jwt().refreshReuseGrace(), now)) {
+				// 동시 요청: 묶음을 폐기하지 않고 같은 묶음으로 새 토큰 발급
+				log.debug("Refresh Token 동시 재발급(유예 시간 이내): familyId={}", token.getFamilyId());
+				User user = token.getUser();
+				return new Rotated(user, issue(user, token.getFamilyId()));
+			}
 			refreshTokenRepository.revokeFamily(token.getFamilyId(), RevokedReason.REUSE_DETECTED, now);
 			log.warn("Refresh Token 재사용 감지: userId={}, familyId={}", token.getUser().getId(), token.getFamilyId());
 			throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
