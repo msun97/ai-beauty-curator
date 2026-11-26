@@ -9,8 +9,8 @@ import com.aibeauty.api.global.error.ErrorCode;
  */
 public enum AuthErrorCode implements ErrorCode {
 
-	EMAIL_DUPLICATED(HttpStatus.CONFLICT, "이미 가입된 이메일이에요."),
-	REQUIRED_CONSENT_MISSING(HttpStatus.BAD_REQUEST, "필수 약관에 모두 동의해 주세요."),
+	EMAIL_DUPLICATED(HttpStatus.CONFLICT, "이미 가입된 이메일이에요.", "email"),
+	REQUIRED_CONSENT_MISSING(HttpStatus.BAD_REQUEST, "필수 약관에 모두 동의해 주세요.", "agreements"),
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않아요."),
 	LOGIN_LOCKED(HttpStatus.TOO_MANY_REQUESTS, "로그인 시도가 너무 많아요. 잠시 후 다시 시도해 주세요."),
 	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "로그인이 만료됐어요. 다시 로그인해 주세요."),
@@ -18,10 +18,17 @@ public enum AuthErrorCode implements ErrorCode {
 
 	private final HttpStatus status;
 	private final String message;
+	private final String field;
 
 	AuthErrorCode(HttpStatus status, String message) {
+		this(status, message, null);
+	}
+
+	/** field: 화면에서 이 오류를 붙일 입력 항목 (요청 필드명) */
+	AuthErrorCode(HttpStatus status, String message, String field) {
 		this.status = status;
 		this.message = message;
+		this.field = field;
 	}
 
 	@Override
@@ -32,5 +39,10 @@ public enum AuthErrorCode implements ErrorCode {
 	@Override
 	public String message() {
 		return message;
+	}
+
+	@Override
+	public String field() {
+		return field;
 	}
 }

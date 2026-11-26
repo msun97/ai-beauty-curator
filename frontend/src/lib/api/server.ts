@@ -2,6 +2,7 @@ import "server-only";
 
 import { cookies, headers } from "next/headers";
 
+import { API_BASE_URL } from "./backend";
 import { ApiError, TRACE_ID_HEADER, networkError, readBody, toApiError } from "./errors";
 import type { AuthUser } from "./types";
 
@@ -15,7 +16,6 @@ import type { AuthUser } from "./types";
  *   재발급은 브라우저 쪽(client.ts)에서 처리한다.
  */
 
-const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:8090";
 const ACCESS_TOKEN_COOKIE = "access_token";
 const DEFAULT_TIMEOUT_MS = 5_000;
 const SAFE_TRACE_ID = /^[A-Za-z0-9-]{1,64}$/;

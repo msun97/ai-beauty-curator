@@ -82,7 +82,10 @@ class AuthIntegrationTest {
 				.andExpect(jsonPath("$.available").value(false));
 			mockMvc.perform(json(post("/api/auth/signup"), signupBody(email, PASSWORD, true)))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.code").value("EMAIL_DUPLICATED"));
+				.andExpect(jsonPath("$.code").value("EMAIL_DUPLICATED"))
+				// 화면이 이메일 입력란 아래에 표시할 수 있도록 필드 오류로도 내려준다
+				.andExpect(jsonPath("$.fieldErrors[0].field").value("email"))
+				.andExpect(jsonPath("$.fieldErrors[0].message").value("이미 가입된 이메일이에요."));
 		}
 
 		@Test
@@ -90,7 +93,8 @@ class AuthIntegrationTest {
 		void requiresAllConsents() throws Exception {
 			mockMvc.perform(json(post("/api/auth/signup"), signupBody(newEmail(), PASSWORD, false)))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.code").value("REQUIRED_CONSENT_MISSING"));
+				.andExpect(jsonPath("$.code").value("REQUIRED_CONSENT_MISSING"))
+				.andExpect(jsonPath("$.fieldErrors[0].field").value("agreements"));
 		}
 
 		@Test
@@ -118,7 +122,9 @@ class AuthIntegrationTest {
 				.andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
 			mockMvc.perform(json(post("/api/auth/login"), loginBody(newEmail(), "wrong12345")))
 				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+				.andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"))
+				// 어느 항목이 틀렸는지 알려주면 가입 여부가 드러나므로 필드 오류를 붙이지 않는다
+				.andExpect(jsonPath("$.fieldErrors").isEmpty());
 		}
 
 		@Test
