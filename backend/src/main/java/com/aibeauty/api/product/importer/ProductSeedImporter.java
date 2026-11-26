@@ -47,9 +47,12 @@ public class ProductSeedImporter {
 			"brand", "name", "category", "source_name", "source_url", "collected_at", "ingredients");
 	private static final int REPORTED_UNMATCHED = 30;
 
+	/**
+	 * @param sourceTerms 출처의 이용 조건 (NFR-LEG-02). 비어 있으면 기존 값을 유지한다
+	 */
 	record Row(int lineNo, String brand, String name, String category, String volume, Integer price,
-			String description, String sourceName, String sourceUrl, LocalDate collectedAt, List<String> ingredients,
-			List<String> skinTypes, List<String> concerns) {
+			String description, String sourceName, String sourceTerms, String sourceUrl, LocalDate collectedAt,
+			List<String> ingredients, List<String> skinTypes, List<String> concerns) {
 	}
 
 	public record ProductMatch(String brand, String name, int total, int matched) {
@@ -95,7 +98,7 @@ public class ProductSeedImporter {
 		List<ProductMatch> matches = new ArrayList<>();
 		Map<String, Integer> unmatched = new HashMap<>();
 		for (Row row : rows) {
-			long sourceId = upsertSource(row.sourceName());
+			long sourceId = upsertSource(row.sourceName(), row.sourceTerms());
 			long brandId = upsertBrand(row.brand());
 			long productId = upsertProduct(row, brandId, categories.get(row.category()), sourceId, now);
 
@@ -129,12 +132,12 @@ public class ProductSeedImporter {
 		return result;
 	}
 
-	private long upsertSource(String name) {
+	private long upsertSource(String name, String usageTerms) {
 		return jdbc.queryForObject("""
-				INSERT INTO data_sources (name, source_type) VALUES (?, 'MANUAL')
-				ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+				INSERT INTO data_sources (name, source_type, usage_terms) VALUES (?, 'MANUAL', ?)
+				ON CONFLICT (name) DO UPDATE SET usage_terms = COALESCE(EXCLUDED.usage_terms, data_sources.usage_terms)
 				RETURNING id
-				""", Long.class, name);
+				""", Long.class, name, usageTerms);
 	}
 
 	private long upsertBrand(String name) {
@@ -292,6 +295,7 @@ public class ProductSeedImporter {
 				price.isEmpty() ? null : parsePrice(price),
 				blankToNull(cell(cells, columns, "description")),
 				required(cells, columns, "source_name"),
+				blankToNull(cell(cells, columns, "source_terms")),
 				required(cells, columns, "source_url"),
 				parseDate(required(cells, columns, "collected_at")),
 				ingredients,

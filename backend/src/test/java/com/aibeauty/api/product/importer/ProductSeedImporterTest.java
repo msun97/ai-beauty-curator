@@ -103,6 +103,19 @@ class ProductSeedImporterTest {
 	}
 
 	@Test
+	@DisplayName("출처 이용 조건을 기록하고, 비어 있는 행은 기존 값을 지우지 않는다")
+	void recordsSourceTerms() {
+		String header = "brand\tname\tcategory\tsource_name\tsource_terms\tsource_url\tcollected_at\tingredients\n";
+		new ProductSeedImporter(jdbc, new ByteArrayResource((header
+				+ "브랜드\t상품A\tTONER\t판매처\t사실 정보만 인용\thttps://example.com/a\t2026-11-24\t정제수\n"
+				+ "브랜드\t상품B\tTONER\t판매처\t\thttps://example.com/b\t2026-11-24\t정제수\n")
+				.getBytes(StandardCharsets.UTF_8)), clock).run();
+
+		assertThat(jdbc.queryForObject("SELECT usage_terms FROM data_sources WHERE name = '판매처'", String.class))
+				.isEqualTo("사실 정보만 인용");
+	}
+
+	@Test
 	@DisplayName("저장소의 상품 파일은 형식이 맞다")
 	void seedFileIsValid() {
 		List<ProductSeedImporter.Row> rows = ProductSeedImporter.parse(new ClassPathResource("seed/products.tsv"));
