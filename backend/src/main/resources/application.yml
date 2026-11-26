@@ -1,6 +1,12 @@
 spring:
   application:
     name: api
+  config:
+    # 로컬 비밀값(API 키 등). .gitignore 대상이고, 파일이 없으면 무시한다.
+    # backend 폴더에서 실행할 때와 프로젝트 루트에서 실행할 때를 모두 지원한다
+    import:
+      - optional:file:./.env.local[.properties]
+      - optional:file:./backend/.env.local[.properties]
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/aibeauty}
     username: ${DB_USERNAME:aibeauty}
@@ -53,3 +59,8 @@ app:
     terms-version: "2026-11"
   mail:
     provider: ${MAIL_PROVIDER:}         # 운영 메일 구현 추가 전까지 비워 둠 (로컬은 log)
+  import:
+    mfds-ingredients:                   # 식약처 화장품 원료성분정보 (import 프로필에서만 사용)
+      api-key: ${MFDS_API_KEY:}
+      page-size: 500
+      request-interval: 300ms

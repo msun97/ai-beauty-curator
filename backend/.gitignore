@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### 수집 원본 (공공데이터 등) ###
+/data/raw/
