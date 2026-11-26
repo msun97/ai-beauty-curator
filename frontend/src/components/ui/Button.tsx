@@ -18,8 +18,40 @@ export function buttonClassName(variant: Variant = "primary", className = ""): s
   return `${BASE} ${VARIANTS[variant]} ${className}`.trim();
 }
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant };
+export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: Variant;
+  /** 처리 중: 누를 수 없게 막고 글자 앞에 회전 표시를 보여준다 (중복 제출 방지) */
+  loading?: boolean;
+};
 
-export function Button({ variant = "primary", className, type = "button", ...props }: ButtonProps) {
-  return <button type={type} className={buttonClassName(variant, className)} {...props} />;
+export function Button({
+  variant = "primary",
+  loading = false,
+  disabled,
+  className,
+  type = "button",
+  children,
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      type={type}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={buttonClassName(variant, `${loading ? "disabled:cursor-wait" : ""} ${className ?? ""}`)}
+      {...props}
+    >
+      {loading && <Spinner />}
+      {children}
+    </button>
+  );
+}
+
+function Spinner() {
+  return (
+    <span
+      aria-hidden="true"
+      className="size-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
+    />
+  );
 }
