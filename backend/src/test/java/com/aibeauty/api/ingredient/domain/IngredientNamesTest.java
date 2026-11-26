@@ -1,4 +1,4 @@
-package com.aibeauty.api.ingredient.importer;
+package com.aibeauty.api.ingredient.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
