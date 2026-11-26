@@ -40,6 +40,8 @@ import jakarta.servlet.http.Cookie;
 class AuthIntegrationTest {
 
 	private static final String PASSWORD = "password123";
+	private static final String LOCKED_MESSAGE = "로그인을 5번 잘못 시도해서 10분 동안 로그인이 제한돼요. "
+			+ "10분 뒤에 다시 시도하거나, 비밀번호를 재설정하면 바로 로그인할 수 있어요.";
 
 	@Autowired
 	MockMvc mockMvc;
@@ -139,9 +141,12 @@ class AuthIntegrationTest {
 			}
 			mockMvc.perform(json(post("/api/auth/login"), loginBody(email, "wrong12345")))
 				.andExpect(status().isTooManyRequests())
-				.andExpect(jsonPath("$.code").value("LOGIN_LOCKED"));
+				.andExpect(jsonPath("$.code").value("LOGIN_LOCKED"))
+				// 횟수·시간은 설정값(max-failures: 5, lock-duration: 10m)으로 채워진다
+				.andExpect(jsonPath("$.message").value(LOCKED_MESSAGE));
 			mockMvc.perform(json(post("/api/auth/login"), loginBody(email, PASSWORD)))
-				.andExpect(status().isTooManyRequests());
+				.andExpect(status().isTooManyRequests())
+				.andExpect(jsonPath("$.message").value(LOCKED_MESSAGE));
 		}
 
 		@Test

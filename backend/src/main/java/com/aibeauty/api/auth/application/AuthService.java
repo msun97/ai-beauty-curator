@@ -15,6 +15,7 @@ import com.aibeauty.api.auth.domain.RevokedReason;
 import com.aibeauty.api.auth.domain.UserConsent;
 import com.aibeauty.api.auth.domain.UserConsentRepository;
 import com.aibeauty.api.global.error.BusinessException;
+import com.aibeauty.api.global.format.KoreanDuration;
 import com.aibeauty.api.auth.domain.AuthErrorCode;
 import com.aibeauty.api.global.security.AccessTokenProvider;
 import com.aibeauty.api.global.security.AuthProperties;
@@ -103,11 +104,11 @@ public class AuthService {
 			throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
 		}
 		if (user.isLocked(now)) {
-			throw new BusinessException(AuthErrorCode.LOGIN_LOCKED);
+			throw loginLocked();
 		}
 		if (!passwordEncoder.matches(password, user.getPasswordHash())) {
 			user.recordLoginFailure(properties.login().maxFailures(), properties.login().lockDuration(), now);
-			throw new BusinessException(user.isLocked(now) ? AuthErrorCode.LOGIN_LOCKED : AuthErrorCode.INVALID_CREDENTIALS);
+			throw user.isLocked(now) ? loginLocked() : new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
 		}
 		user.recordLoginSuccess(now);
 		return issueTokens(user);
@@ -131,6 +132,16 @@ public class AuthService {
 
 	private AuthResult issueTokens(User user) {
 		return new AuthResult(user, accessTokenProvider.issue(user), refreshTokenService.issueNewFamily(user));
+	}
+
+	/**
+	 * 잠금 안내 문구의 빈칸을 실제 설정값으로 채운다 (FR-AUTH-02: 문구와 설정이 어긋나지 않게).
+	 * {0}: 최대 실패 횟수(max-failures), {1}: 잠금 시간(lock-duration, 예: 10m → "10분")
+	 */
+	private BusinessException loginLocked() {
+		AuthProperties.Login login = properties.login();
+		return BusinessException.withArgs(AuthErrorCode.LOGIN_LOCKED, login.maxFailures(),
+				KoreanDuration.format(login.lockDuration()));
 	}
 
 	/** 닉네임을 입력하지 않으면 이메일 앞부분을 기본 닉네임으로 쓴다. */

@@ -45,10 +45,11 @@ public class GlobalExceptionHandler {
 			log.info("비즈니스 오류: code={}, detail={}", code.code(), e.getMessage());
 		}
 		// 특정 입력 항목 때문에 생긴 오류면 검증 오류와 같은 모양(fieldErrors)으로 내려 화면이 한 가지 방식으로 처리하게 한다
+		String message = e.userMessage();
 		List<FieldError> fieldErrors = code.field() == null
 				? List.of()
-				: List.of(new FieldError(code.field(), code.message()));
-		return respond(code, fieldErrors);
+				: List.of(new FieldError(code.field(), message));
+		return ResponseEntity.status(code.status()).body(ResErrorDTO.of(code, message, fieldErrors));
 	}
 
 	/** @RequestBody 검증 실패 */
