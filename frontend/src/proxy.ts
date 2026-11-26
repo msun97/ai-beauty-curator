@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { API_BASE_URL } from "@/lib/api/backend";
 import { ACCESS_TOKEN_COOKIE } from "@/lib/auth/accessToken";
+import { safeNextPath } from "@/lib/auth/nextPath";
 import { checkSession } from "@/lib/auth/session";
 
 /**
@@ -18,7 +19,9 @@ export async function proxy(request: NextRequest) {
   const status = await checkSession(token, API_BASE_URL);
 
   if (status === "signed-in") {
-    return NextResponse.redirect(new URL("/", request.url));
+    // 로그인 화면에 돌아갈 곳(?next=)이 있었다면 그곳으로, 없으면 홈으로
+    const next = safeNextPath(request.nextUrl.searchParams.get("next"));
+    return NextResponse.redirect(new URL(next, request.url));
   }
 
   const response = NextResponse.next();
