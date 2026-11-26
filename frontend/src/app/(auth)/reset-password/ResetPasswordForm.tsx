@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 
 import { buttonClassName } from "@/components/ui/Button";
 import { FormAlert } from "@/components/ui/FormAlert";
@@ -53,6 +53,7 @@ export function ResetPasswordForm() {
   const [submitting, setSubmitting] = useState(false);
   const [expired, setExpired] = useState(false);
   const inputs = useRef<Partial<Record<Field, HTMLInputElement | null>>>({});
+  const rulesId = useId();
 
   if (token === undefined) {
     return <div className="h-64" aria-busy="true" />;
@@ -111,8 +112,9 @@ export function ResetPasswordForm() {
           if (errors.fields.newPassword) setErrors((p) => ({ ...p, fields: { ...p.fields, newPassword: undefined } }));
         }}
         error={errors.fields.newPassword}
+        aria-describedby={rulesId}
       >
-        <PasswordRules value={newPassword} />
+        <PasswordRules id={rulesId} value={newPassword} />
       </PasswordField>
       <PasswordField
         ref={(el) => {
@@ -140,11 +142,18 @@ export function ResetPasswordForm() {
 
 /** 링크가 없거나, 만료됐거나, 이미 사용한 경우 */
 function InvalidLink() {
+  const heading = useRef<HTMLHeadingElement>(null);
+  // 제출 후 이 안내로 바뀌면 폼이 사라져 초점을 잃으므로 제목으로 옮긴다
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
   return (
     <div className="flex flex-col gap-5">
       <div role="alert" className="rounded-card bg-surface-muted px-5 py-6 text-center">
         <Icon name="alert" size={28} className="mx-auto text-danger" />
-        <h2 className="mt-3 text-lg font-bold">링크를 사용할 수 없어요</h2>
+        <h2 ref={heading} tabIndex={-1} className="mt-3 text-lg font-bold outline-none">
+          링크를 사용할 수 없어요
+        </h2>
         <p className="mt-2 text-sm text-ink">
           링크가 만료됐거나 이미 사용됐어요. 비밀번호 찾기를 다시 진행해 주세요.
         </p>

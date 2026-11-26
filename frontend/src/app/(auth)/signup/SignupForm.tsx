@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { AgreementList } from "@/components/ui/AgreementList";
 import { Button, buttonClassName } from "@/components/ui/Button";
@@ -48,15 +48,20 @@ type Step =
  */
 export function SignupForm() {
   const [step, setStep] = useState<Step>({ name: "email" });
+  // 처음 열 때는 초점을 옮기지 않고, 코드 단계에서 "이메일 다시 입력"으로 돌아왔을 때만 이메일 칸으로 옮긴다
+  const [returnedToEmail, setReturnedToEmail] = useState(false);
 
   switch (step.name) {
     case "email":
-      return <EmailStep onSent={(email) => setStep({ name: "code", email })} />;
+      return <EmailStep autoFocus={returnedToEmail} onSent={(email) => setStep({ name: "code", email })} />;
     case "code":
       return (
         <CodeStep
           email={step.email}
-          onChangeEmail={() => setStep({ name: "email" })}
+          onChangeEmail={() => {
+            setReturnedToEmail(true);
+            setStep({ name: "email" });
+          }}
           onVerified={(result) =>
             setStep(
               result.registered
@@ -89,11 +94,15 @@ function StepHeader({ current, title, description }: { current: 1 | 2 | 3; title
 
 // --- ① 이메일 -------------------------------------------------------------------
 
-function EmailStep({ onSent }: { onSent: (email: string) => void }) {
+function EmailStep({ autoFocus, onSent }: { autoFocus: boolean; onSent: (email: string) => void }) {
   const [email, setEmail] = useState("");
   const [errors, setErrors] = useState<FormErrors<"email">>(NO_ERRORS);
   const [submitting, setSubmitting] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (autoFocus) input.current?.focus();
+  }, [autoFocus]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -271,11 +280,18 @@ function CodeStep({
 // --- 이미 가입된 이메일 (코드를 맞힌 사람에게만) ------------------------------
 
 function RegisteredNotice({ email }: { email: string }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  // 단계가 바뀌면 이전 입력란이 사라져 초점을 잃으므로 결과 제목으로 옮긴다 (키보드·스크린 리더 사용자)
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
   return (
     <div className="flex flex-col gap-5">
       <div role="status" className="rounded-card bg-surface-muted px-5 py-6 text-center">
         <Icon name="info" size={28} className="mx-auto text-brand" />
-        <h2 className="mt-3 text-lg font-bold">이미 가입된 이메일이에요</h2>
+        <h2 ref={heading} tabIndex={-1} className="mt-3 text-lg font-bold outline-none">
+          이미 가입된 이메일이에요
+        </h2>
         <p className="mt-1 text-sm break-all text-muted">{email}</p>
         <p className="mt-3 text-sm text-ink">이 이메일로 로그인하거나, 비밀번호가 기억나지 않으면 재설정해 주세요.</p>
       </div>
@@ -297,6 +313,12 @@ function DetailsStep({ email, verificationToken }: { email: string; verification
   const [errors, setErrors] = useState<FormErrors<DetailField>>(NO_ERRORS);
   const [submitting, setSubmitting] = useState(false);
   const inputs = useRef<Partial<Record<DetailField, HTMLElement | null>>>({});
+  const rulesId = useId();
+
+  // 단계가 바뀌면 이전 입력란(인증 코드)이 사라져 초점을 잃으므로 첫 입력란으로 옮긴다
+  useEffect(() => {
+    inputs.current.password?.focus();
+  }, []);
 
   function update<K extends keyof DetailValues>(key: K, value: DetailValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -361,8 +383,9 @@ function DetailsStep({ email, verificationToken }: { email: string; verification
         value={values.password}
         onChange={(e) => update("password", e.target.value)}
         error={errors.fields.password}
+        aria-describedby={rulesId}
       >
-        <PasswordRules value={values.password} />
+        <PasswordRules id={rulesId} value={values.password} />
       </PasswordField>
 
       <PasswordField

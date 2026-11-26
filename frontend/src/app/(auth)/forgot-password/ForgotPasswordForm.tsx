@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Button, buttonClassName } from "@/components/ui/Button";
 import { FormAlert } from "@/components/ui/FormAlert";
@@ -23,6 +23,12 @@ export function ForgotPasswordForm() {
   const [errors, setErrors] = useState<FormErrors<"email">>(NO_ERRORS);
   const [submitting, setSubmitting] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const sentHeading = useRef<HTMLHeadingElement>(null);
+
+  // 폼이 안내 화면으로 바뀌면 입력란이 사라져 초점을 잃으므로 안내 제목으로 옮긴다
+  useEffect(() => {
+    if (sentTo) sentHeading.current?.focus();
+  }, [sentTo]);
 
   async function send(target: string) {
     setSubmitting(true);
@@ -56,7 +62,9 @@ export function ForgotPasswordForm() {
       <div className="flex flex-col gap-5">
         <div role="status" className="rounded-card bg-brand-tint px-5 py-6 text-center">
           <Icon name="check" size={28} className="mx-auto text-brand" />
-          <h2 className="mt-3 text-lg font-bold">입력하신 이메일로 안내를 보냈어요</h2>
+          <h2 ref={sentHeading} tabIndex={-1} className="mt-3 text-lg font-bold outline-none">
+            입력하신 이메일로 안내를 보냈어요
+          </h2>
           <p className="mt-1 text-sm break-all text-muted">{sentTo}</p>
           <p className="mt-3 text-sm text-ink">
             메일의 링크에서 새 비밀번호를 설정해 주세요. 링크는 30분 동안 한 번만 쓸 수 있어요.
