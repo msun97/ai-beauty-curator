@@ -22,7 +22,11 @@ public record ResErrorDTO(String code, String message, List<FieldError> fieldErr
 	}
 
 	public static ResErrorDTO of(ErrorCode errorCode, List<FieldError> fieldErrors) {
-		return new ResErrorDTO(errorCode.code(), errorCode.message(), List.copyOf(fieldErrors),
-				TraceIdFilter.currentTraceId());
+		return of(errorCode, errorCode.message(), fieldErrors);
+	}
+
+	/** 빈칸을 채운 문구처럼 기본 문구 대신 다른 문구를 보여줄 때 */
+	public static ResErrorDTO of(ErrorCode errorCode, String message, List<FieldError> fieldErrors) {
+		return new ResErrorDTO(errorCode.code(), message, List.copyOf(fieldErrors), TraceIdFilter.currentTraceId());
 	}
 }
