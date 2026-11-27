@@ -96,6 +96,11 @@
   :root:has([data-tab-bar]) {
     --toast-offset: var(--spacing-tab-bar);
   }
+
+  /* 바텀시트 등 모달 <dialog>가 열려 있는 동안 뒤 화면이 스크롤되지 않게 한다 */
+  html:has(dialog[open]:modal) {
+    overflow: hidden;
+  }
 }
 
 /* 토스트 등장 효과. 움직임 줄이기 설정을 켠 사용자에게는 적용하지 않는다 */
@@ -106,8 +111,29 @@
   }
 }
 
+/* 바텀시트가 아래에서 올라오는 효과 */
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .toast-enter {
     animation: toast-in 180ms ease-out;
+  }
+
+  .sheet-enter[open] {
+    animation: sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .sheet-enter[open]::backdrop {
+    animation: backdrop-in 220ms ease-out;
   }
 }
