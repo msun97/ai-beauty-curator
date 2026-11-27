@@ -73,6 +73,11 @@ app:
       lock-duration: 10m
       email-key-secret: ${LOGIN_EMAIL_KEY_SECRET:}  # 32바이트 이상 필수. 로그인 실패 기록의 이메일 HMAC 키 (FIX-006). 운영은 환경 변수로만 주입
       cleanup-cron: "0 0 * * * *"       # 하루 지난 로그인 실패 기록 정리 (매시 정각, "-"이면 끔)
+    email-verification:                 # 가입 이메일 인증 코드 (FIX-008)
+      code-ttl: 10m                     # 코드 유효 시간
+      token-ttl: 30m                    # 코드 확인 후 가입까지 허용 시간
+      max-failures: 5                   # 코드 입력 실패 허용 횟수 (넘으면 새 코드 필요)
+      resend-interval: 60s              # 재발송 최소 간격 (프론트 RESEND_COOLDOWN_SECONDS와 같게)
     password-reset:
       token-ttl: 30m
       link-base-url: ${FRONTEND_BASE_URL:http://localhost:3100}/reset-password

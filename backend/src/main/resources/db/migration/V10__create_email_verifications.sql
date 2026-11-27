@@ -11,11 +11,11 @@
 CREATE TABLE email_verifications (
     id               bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     email            varchar(254) NOT NULL,
-    code_hash        char(64)     NOT NULL,
+    code_hash        varchar(64)  NOT NULL,
     code_expires_at  timestamptz  NOT NULL,
     failed_count     integer      NOT NULL DEFAULT 0,
     sent_at          timestamptz  NOT NULL,
-    token_hash       char(64),
+    token_hash       varchar(64),
     token_expires_at timestamptz,
     used_at          timestamptz,
     created_at       timestamptz  NOT NULL,
