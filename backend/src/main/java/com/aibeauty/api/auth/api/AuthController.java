@@ -11,14 +11,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.aibeauty.api.auth.api.dto.ReqEmailVerificationConfirmDTO;
+import com.aibeauty.api.auth.api.dto.ReqEmailVerificationRequestDTO;
 import com.aibeauty.api.auth.api.dto.ResAuthUserDTO;
 import com.aibeauty.api.auth.api.dto.ResEmailAvailabilityDTO;
+import com.aibeauty.api.auth.api.dto.ResEmailVerificationDTO;
 import com.aibeauty.api.auth.api.dto.ReqLoginDTO;
 import com.aibeauty.api.auth.api.dto.ReqPasswordResetConfirmDTO;
 import com.aibeauty.api.auth.api.dto.ReqPasswordResetDTO;
 import com.aibeauty.api.auth.api.dto.ReqSignupDTO;
 import com.aibeauty.api.auth.application.AuthService;
 import com.aibeauty.api.auth.application.AuthService.AuthResult;
+import com.aibeauty.api.auth.application.EmailVerificationService;
 import com.aibeauty.api.auth.application.PasswordResetService;
 import com.aibeauty.api.global.error.BusinessException;
 import com.aibeauty.api.global.security.AuthCookies;
@@ -38,13 +42,28 @@ public class AuthController {
 
 	private final AuthService authService;
 	private final PasswordResetService passwordResetService;
+	private final EmailVerificationService emailVerificationService;
 	private final AuthCookies authCookies;
 
 	public AuthController(AuthService authService, PasswordResetService passwordResetService,
-			AuthCookies authCookies) {
+			EmailVerificationService emailVerificationService, AuthCookies authCookies) {
 		this.authService = authService;
 		this.passwordResetService = passwordResetService;
+		this.emailVerificationService = emailVerificationService;
 		this.authCookies = authCookies;
+	}
+
+	/** 가입 인증 코드 발송. 가입 여부와 관계없이 항상 같은 응답(202)을 반환한다 (FIX-008). */
+	@PostMapping("/email-verification/request")
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	public void requestEmailVerification(@Valid @RequestBody ReqEmailVerificationRequestDTO request) {
+		emailVerificationService.requestCode(request.email());
+	}
+
+	/** 인증 코드 확인. 코드를 맞힌 사람에게만 가입 여부를 알려준다 (FIX-008). */
+	@PostMapping("/email-verification/confirm")
+	public ResEmailVerificationDTO confirmEmailVerification(@Valid @RequestBody ReqEmailVerificationConfirmDTO request) {
+		return ResEmailVerificationDTO.from(emailVerificationService.confirmCode(request.email(), request.code()));
 	}
 
 	@GetMapping("/email-availability")
