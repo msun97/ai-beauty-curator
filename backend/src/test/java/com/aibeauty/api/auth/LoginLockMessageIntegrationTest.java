@@ -13,6 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -35,13 +36,15 @@ class LoginLockMessageIntegrationTest {
 	@Autowired
 	MockMvc mockMvc;
 
+	@Autowired
+	JdbcTemplate jdbc;
+
 	@Test
 	@DisplayName("설정을 3번·90초로 바꾸면 3번째 실패에서 잠기고 문구도 3번·1분 30초로 바뀐다")
 	void messageFollowsConfiguration() throws Exception {
 		String email = "lock-" + UUID.randomUUID() + "@example.com";
-		perform("/api/auth/signup", """
-				{"email":"%s","password":"%s","agreements":{"terms":true,"privacy":true,"skinData":true}}
-				""".formatted(email, PASSWORD)).andExpect(status().isCreated());
+		perform("/api/auth/signup", VerifiedEmails.signupBody(VerifiedEmails.issueToken(jdbc, email), PASSWORD))
+			.andExpect(status().isCreated());
 
 		String wrong = """
 				{"email":"%s","password":"wrong12345"}

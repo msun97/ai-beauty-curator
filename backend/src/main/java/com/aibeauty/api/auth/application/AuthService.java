@@ -34,6 +34,7 @@ public class AuthService {
 	private final PasswordEncoder passwordEncoder;
 	private final LoginAttemptService loginAttemptService;
 	private final LoginEmailKey loginEmailKey;
+	private final EmailVerificationService emailVerificationService;
 	private final AuthProperties properties;
 	private final Clock clock;
 
@@ -43,7 +44,7 @@ public class AuthService {
 	public AuthService(UserRepository userRepository, UserConsentRepository userConsentRepository,
 			RefreshTokenService refreshTokenService, AccessTokenProvider accessTokenProvider,
 			PasswordEncoder passwordEncoder, LoginAttemptService loginAttemptService, LoginEmailKey loginEmailKey,
-			AuthProperties properties, Clock clock) {
+			EmailVerificationService emailVerificationService, AuthProperties properties, Clock clock) {
 		this.userRepository = userRepository;
 		this.userConsentRepository = userConsentRepository;
 		this.refreshTokenService = refreshTokenService;
@@ -51,6 +52,7 @@ public class AuthService {
 		this.passwordEncoder = passwordEncoder;
 		this.loginAttemptService = loginAttemptService;
 		this.loginEmailKey = loginEmailKey;
+		this.emailVerificationService = emailVerificationService;
 		this.properties = properties;
 		this.clock = clock;
 		this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
@@ -65,15 +67,20 @@ public class AuthService {
 		return !userRepository.existsByEmail(normalizeEmail(email));
 	}
 
-	/** 회원가입 후 바로 로그인 상태로 만든다 (가입 전 입력한 프로필을 이어서 저장하기 위해 - FR-PRF-05). */
+	/**
+	 * 회원가입 후 바로 로그인 상태로 만든다 (가입 전 입력한 프로필을 이어서 저장하기 위해 - FR-PRF-05).
+	 * 이메일은 인증 코드 확인에서 받은 1회용 토큰으로 찾는다 (FIX-008). 토큰 사용 처리도 같은 트랜잭션이라
+	 * 가입이 실패하면 토큰은 다시 쓸 수 있는 상태로 남는다.
+	 */
 	@Transactional
 	public AuthResult signup(SignupCommand command) {
 		if (!command.agreedTerms() || !command.agreedPrivacy() || !command.agreedSkinData()) {
 			throw new BusinessException(AuthErrorCode.REQUIRED_CONSENT_MISSING);
 		}
-		String email = normalizeEmail(command.email());
+		String email = emailVerificationService.consumeToken(command.verificationToken());
 		if (userRepository.existsByEmail(email)) {
-			throw new BusinessException(AuthErrorCode.EMAIL_DUPLICATED);
+			// 토큰은 가입되지 않은 이메일에만 발급되므로, 그 사이 같은 이메일로 가입이 끝난 경우뿐이다
+			throw new BusinessException(AuthErrorCode.INVALID_VERIFICATION_TOKEN);
 		}
 
 		Instant now = clock.instant();
@@ -83,8 +90,8 @@ public class AuthService {
 					resolveNickname(command.nickname(), email), now));
 		}
 		catch (DataIntegrityViolationException e) {
-			// 중복 확인과 저장 사이에 같은 이메일로 동시에 가입한 경우
-			throw new BusinessException(AuthErrorCode.EMAIL_DUPLICATED);
+			// 확인과 저장 사이에 같은 이메일로 동시에 가입한 경우
+			throw new BusinessException(AuthErrorCode.INVALID_VERIFICATION_TOKEN);
 		}
 
 		String version = properties.termsVersion();
@@ -160,7 +167,7 @@ public class AuthService {
 		return value.length() > NICKNAME_MAX_LENGTH ? value.substring(0, NICKNAME_MAX_LENGTH) : value;
 	}
 
-	public record SignupCommand(String email, String password, String nickname, boolean agreedTerms,
+	public record SignupCommand(String verificationToken, String password, String nickname, boolean agreedTerms,
 			boolean agreedPrivacy, boolean agreedSkinData) {
 	}
 

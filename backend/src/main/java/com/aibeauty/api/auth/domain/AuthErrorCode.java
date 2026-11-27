@@ -23,7 +23,9 @@ public enum AuthErrorCode implements ErrorCode {
 			"code"),
 	/** {0}: 코드 입력 실패 허용 횟수 (app.auth.email-verification.max-failures) */
 	VERIFICATION_ATTEMPTS_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS,
-			"인증 코드를 {0}번 잘못 입력했어요. 인증 코드를 다시 받아 주세요.");
+			"인증 코드를 {0}번 잘못 입력했어요. 인증 코드를 다시 받아 주세요."),
+	/** 가입용 토큰이 없거나 만료(30분)·사용됨 (FIX-008). 화면은 이메일 인증 단계로 돌려보낸다 */
+	INVALID_VERIFICATION_TOKEN(HttpStatus.BAD_REQUEST, "이메일 인증 시간이 지났어요. 이메일 인증을 다시 진행해 주세요.");
 
 	private final HttpStatus status;
 	private final String message;

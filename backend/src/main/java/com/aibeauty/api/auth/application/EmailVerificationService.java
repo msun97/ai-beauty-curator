@@ -109,6 +109,21 @@ public class EmailVerificationService {
 		return Confirmation.newEmail(token);
 	}
 
+	/**
+	 * 가입용 토큰을 사용 처리하고 인증된 이메일을 돌려준다. 가입과 같은 트랜잭션에서 불러,
+	 * 가입이 실패하면 토큰도 사용되지 않은 상태로 되돌아가게 한다.
+	 * 토큰이 없거나 만료(30분)·이미 사용됐으면 INVALID_VERIFICATION_TOKEN.
+	 */
+	@Transactional
+	public String consumeToken(String verificationToken) {
+		Instant now = clock.instant();
+		EmailVerification verification = repository.findByTokenHashForUpdate(TokenGenerator.hash(verificationToken))
+			.filter(v -> v.isTokenUsable(now))
+			.orElseThrow(() -> new BusinessException(AuthErrorCode.INVALID_VERIFICATION_TOKEN));
+		verification.markTokenUsed(now);
+		return verification.getEmail();
+	}
+
 	/** 해시 비교 시간이 값에 따라 달라지지 않게 한다 */
 	private static boolean matches(String a, String b) {
 		return MessageDigest.isEqual(a.getBytes(StandardCharsets.UTF_8), b.getBytes(StandardCharsets.UTF_8));
