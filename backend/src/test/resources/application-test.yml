@@ -9,5 +9,6 @@ app:
       secure: false
     login:
       email-key-secret: test-only-login-email-key-0123456789-abcdef
+      cleanup-cron: "-"   # 테스트 중 정리 작업이 다른 테스트의 기록을 지우지 않게 끔
   mail:
     provider: log
