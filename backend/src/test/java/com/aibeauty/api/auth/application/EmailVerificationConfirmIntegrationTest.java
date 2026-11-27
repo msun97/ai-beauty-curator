@@ -152,4 +152,37 @@ class EmailVerificationConfirmIntegrationTest {
 		assertThatThrownBy(() -> service.confirmCode(newEmail(), "123456"))
 			.satisfies(e -> assertThat(errorCode(e)).isEqualTo("INVALID_VERIFICATION_CODE"));
 	}
+
+	@Test
+	@DisplayName("정리: 모두 만료됐거나 토큰을 쓴 오래된 행만 지우고, 쓸 수 있는 토큰·최근 행은 남긴다")
+	void deleteStale() {
+		String expiredOld = newEmail();
+		String usedOld = newEmail();
+		String tokenAlive = newEmail();
+		String recent = newEmail();
+		insertRow(expiredOld, "now() - interval '2 days'", null, null);
+		insertRow(usedOld, "now() - interval '2 days'", "now() + interval '10 minutes'", "now() - interval '2 days'");
+		insertRow(tokenAlive, "now() - interval '2 days'", "now() + interval '10 minutes'", null);
+		insertRow(recent, "now()", null, null);
+
+		service.deleteStale(java.time.Instant.now().minus(java.time.Duration.ofDays(1)), java.time.Instant.now());
+
+		assertThat(count(expiredOld)).isZero();
+		assertThat(count(usedOld)).isZero();
+		assertThat(count(tokenAlive)).isOne();
+		assertThat(count(recent)).isOne();
+	}
+
+	/** updatedAt 시각, 토큰 만료 시각, 토큰 사용 시각(SQL 식). 코드는 모두 만료 상태 */
+	private void insertRow(String email, String updatedAt, String tokenExpiresAt, String usedAt) {
+		jdbc.update("INSERT INTO email_verifications (email, code_hash, code_expires_at, failed_count, sent_at, token_hash, "
+				+ "token_expires_at, used_at, created_at, updated_at) VALUES (?, repeat('0', 64), now() - interval '1 second', 0, "
+				+ updatedAt + ", " + (tokenExpiresAt == null ? "NULL" : "md5(random()::text) || md5(random()::text)") + ", "
+				+ (tokenExpiresAt == null ? "NULL" : tokenExpiresAt) + ", " + (usedAt == null ? "NULL" : usedAt) + ", "
+				+ updatedAt + ", " + updatedAt + ")", email);
+	}
+
+	private int count(String email) {
+		return jdbc.queryForObject("SELECT count(*) FROM email_verifications WHERE email = ?", Integer.class, email);
+	}
 }

@@ -124,6 +124,15 @@ public class EmailVerificationService {
 		return verification.getEmail();
 	}
 
+	/**
+	 * 오래된 인증 기록 정리: 코드·토큰이 모두 만료됐거나 토큰을 이미 썼고, 마지막 변경이 staleBefore보다 이전인 행.
+	 * @return 지운 행 수
+	 */
+	@Transactional
+	public int deleteStale(Instant staleBefore, Instant now) {
+		return repository.deleteStale(staleBefore, now);
+	}
+
 	/** 해시 비교 시간이 값에 따라 달라지지 않게 한다 */
 	private static boolean matches(String a, String b) {
 		return MessageDigest.isEqual(a.getBytes(StandardCharsets.UTF_8), b.getBytes(StandardCharsets.UTF_8));
