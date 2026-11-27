@@ -11,6 +11,8 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aibeauty.api.global.ratelimit.RateLimitRule;
+import com.aibeauty.api.global.ratelimit.RateLimitService;
 import com.aibeauty.api.auth.domain.AuthErrorCode;
 import com.aibeauty.api.auth.domain.EmailVerification;
 import com.aibeauty.api.auth.domain.EmailVerificationRepository;
@@ -40,16 +42,18 @@ public class EmailVerificationService {
 	private final EmailVerificationRepository repository;
 	private final UserRepository userRepository;
 	private final AuthMailSender mailSender;
+	private final RateLimitService rateLimitService;
 	private final EmailVerificationProperties properties;
 	private final SecretKeySpec codeKey;
 	private final Clock clock;
 
 	public EmailVerificationService(EmailVerificationRepository repository, UserRepository userRepository,
-			AuthMailSender mailSender, EmailVerificationProperties properties, AuthProperties authProperties,
-			Clock clock) {
+			AuthMailSender mailSender, RateLimitService rateLimitService, EmailVerificationProperties properties,
+			AuthProperties authProperties, Clock clock) {
 		this.repository = repository;
 		this.userRepository = userRepository;
 		this.mailSender = mailSender;
+		this.rateLimitService = rateLimitService;
 		this.properties = properties;
 		this.codeKey = Hmac.key(authProperties.login().emailKeySecret());
 		this.clock = clock;
@@ -62,6 +66,8 @@ public class EmailVerificationService {
 	@Transactional
 	public void requestCode(String rawEmail) {
 		String email = AuthService.normalizeEmail(rawEmail);
+		// 받는 이메일 기준 횟수 제한 (FIX-009): 비밀번호 재설정 요청과 합쳐 센다
+		rateLimitService.check(RateLimitRule.MAIL_EMAIL, email);
 		Instant now = clock.instant();
 		repository.insertIfAbsent(email, now);
 		EmailVerification verification = repository.findByEmailForUpdate(email)

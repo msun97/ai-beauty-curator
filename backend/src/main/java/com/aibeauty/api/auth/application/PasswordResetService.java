@@ -7,6 +7,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aibeauty.api.global.ratelimit.RateLimitRule;
+import com.aibeauty.api.global.ratelimit.RateLimitService;
 import com.aibeauty.api.auth.domain.PasswordResetToken;
 import com.aibeauty.api.auth.domain.PasswordResetTokenRepository;
 import com.aibeauty.api.auth.domain.RevokedReason;
@@ -28,6 +30,7 @@ public class PasswordResetService {
 	private final PasswordResetTokenRepository passwordResetTokenRepository;
 	private final RefreshTokenService refreshTokenService;
 	private final AuthMailSender mailSender;
+	private final RateLimitService rateLimitService;
 	private final PasswordEncoder passwordEncoder;
 	private final LoginAttemptService loginAttemptService;
 	private final LoginEmailKey loginEmailKey;
@@ -36,13 +39,14 @@ public class PasswordResetService {
 
 	public PasswordResetService(UserRepository userRepository,
 			PasswordResetTokenRepository passwordResetTokenRepository, RefreshTokenService refreshTokenService,
-			AuthMailSender mailSender, PasswordEncoder passwordEncoder,
+			AuthMailSender mailSender, RateLimitService rateLimitService, PasswordEncoder passwordEncoder,
 			LoginAttemptService loginAttemptService, LoginEmailKey loginEmailKey, AuthProperties properties,
 			Clock clock) {
 		this.userRepository = userRepository;
 		this.passwordResetTokenRepository = passwordResetTokenRepository;
 		this.refreshTokenService = refreshTokenService;
 		this.mailSender = mailSender;
+		this.rateLimitService = rateLimitService;
 		this.passwordEncoder = passwordEncoder;
 		this.loginAttemptService = loginAttemptService;
 		this.loginEmailKey = loginEmailKey;
@@ -56,7 +60,10 @@ public class PasswordResetService {
 	 */
 	@Transactional
 	public void request(String rawEmail) {
-		userRepository.findByEmail(AuthService.normalizeEmail(rawEmail)).ifPresent(user -> {
+		String email = AuthService.normalizeEmail(rawEmail);
+		// 받는 이메일 기준 횟수 제한 (FIX-009). 가입 여부를 보기 전에 세야 응답으로 가입 여부가 드러나지 않는다
+		rateLimitService.check(RateLimitRule.MAIL_EMAIL, email);
+		userRepository.findByEmail(email).ifPresent(user -> {
 			Instant now = clock.instant();
 			passwordResetTokenRepository.invalidateAllByUser(user.getId(), now);
 
