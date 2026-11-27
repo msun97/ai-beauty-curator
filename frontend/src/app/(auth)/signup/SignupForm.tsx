@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
+import { LegalDocument } from "@/components/legal/LegalDocument";
 import { AgreementList } from "@/components/ui/AgreementList";
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Button, buttonClassName } from "@/components/ui/Button";
 import { FormAlert } from "@/components/ui/FormAlert";
 import { Icon } from "@/components/ui/Icon";
@@ -12,7 +14,8 @@ import { PasswordField } from "@/components/ui/PasswordField";
 import { PasswordRules } from "@/components/ui/PasswordRules";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { TextField } from "@/components/ui/TextField";
-import { SIGNUP_AGREEMENTS } from "@/lib/auth/agreements";
+import { AGREEMENT_DOCUMENTS } from "@/content/legal";
+import { SIGNUP_AGREEMENTS, type AgreementKey } from "@/lib/auth/agreements";
 import { safeNextPath } from "@/lib/auth/nextPath";
 import { signupApi } from "@/lib/auth/signupApi";
 import {
@@ -314,6 +317,9 @@ function DetailsStep({ email, verificationToken }: { email: string; verification
   const [submitting, setSubmitting] = useState(false);
   const inputs = useRef<Partial<Record<DetailField, HTMLElement | null>>>({});
   const rulesId = useId();
+  // "보기"로 연 약관. 닫는 동안에도 내용이 사라지지 않게 마지막 문서는 남기고 열림 여부만 따로 둔다
+  const [viewing, setViewing] = useState<AgreementKey>("terms");
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   // 단계가 바뀌면 이전 입력란(인증 코드)이 사라져 초점을 잃으므로 첫 입력란으로 옮긴다
   useEffect(() => {
@@ -433,9 +439,33 @@ function DetailsStep({ email, verificationToken }: { email: string; verification
           items={SIGNUP_AGREEMENTS}
           value={values.agreements}
           onChange={(next) => update("agreements", next)}
+          onView={(item) => {
+            setViewing(item.key);
+            setSheetOpen(true);
+          }}
           error={errors.fields.agreements}
         />
       </div>
+
+      <BottomSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        title={AGREEMENT_DOCUMENTS[viewing].title}
+        footer={
+          // 끝까지 읽고 바로 동의할 수 있게 한다. 동의하지 않으려면 닫기(X)·Esc·바깥 누르기
+          <Button
+            className="w-full"
+            onClick={() => {
+              update("agreements", { ...values.agreements, [viewing]: true });
+              setSheetOpen(false);
+            }}
+          >
+            동의하고 닫기
+          </Button>
+        }
+      >
+        <LegalDocument document={AGREEMENT_DOCUMENTS[viewing]} sectionHeading="h3" />
+      </BottomSheet>
 
       <SubmitButton loading={submitting} pendingText="가입하는 중…" className="mt-1 w-full">
         가입하기
