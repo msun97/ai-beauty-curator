@@ -1,5 +1,7 @@
 package com.aibeauty.api.auth.application;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
@@ -9,12 +11,16 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aibeauty.api.auth.domain.AuthErrorCode;
 import com.aibeauty.api.auth.domain.EmailVerification;
 import com.aibeauty.api.auth.domain.EmailVerificationRepository;
+import com.aibeauty.api.global.error.BusinessException;
 import com.aibeauty.api.global.mail.AuthMailSender;
 import com.aibeauty.api.global.security.AuthProperties;
 import com.aibeauty.api.global.security.EmailVerificationProperties;
 import com.aibeauty.api.global.security.Hmac;
+import com.aibeauty.api.global.security.TokenGenerator;
+import com.aibeauty.api.user.domain.UserRepository;
 
 /**
  * 가입 이메일 인증 코드 (FIX-008, FR-AUTH-01).
@@ -32,14 +38,17 @@ public class EmailVerificationService {
 	private static final String CODE_HASH_PREFIX = "email-verification-code:";
 
 	private final EmailVerificationRepository repository;
+	private final UserRepository userRepository;
 	private final AuthMailSender mailSender;
 	private final EmailVerificationProperties properties;
 	private final SecretKeySpec codeKey;
 	private final Clock clock;
 
-	public EmailVerificationService(EmailVerificationRepository repository, AuthMailSender mailSender,
-			EmailVerificationProperties properties, AuthProperties authProperties, Clock clock) {
+	public EmailVerificationService(EmailVerificationRepository repository, UserRepository userRepository,
+			AuthMailSender mailSender, EmailVerificationProperties properties, AuthProperties authProperties,
+			Clock clock) {
 		this.repository = repository;
+		this.userRepository = userRepository;
 		this.mailSender = mailSender;
 		this.properties = properties;
 		this.codeKey = Hmac.key(authProperties.login().emailKeySecret());
@@ -64,6 +73,60 @@ public class EmailVerificationService {
 		String code = newCode();
 		verification.reissueCode(codeHash(email, code), now.plus(properties.codeTtl()), now);
 		mailSender.sendVerificationCode(email, code);
+	}
+
+	/**
+	 * 코드를 확인한다. 맞힌 사람(= 메일함 주인)에게만 가입 여부를 알려준다.
+	 * - 가입된 이메일: registered=true (화면은 "이미 가입된 이메일" 안내)
+	 * - 새 이메일: registered=false + 가입용 1회용 토큰(30분)
+	 * 틀리면 실패 횟수를 늘리고, 허용 횟수에 닿으면 이 코드는 더 쓸 수 없다(새 코드를 받아야 함).
+	 * 실패 횟수는 예외를 던져도 저장되어야 하므로 BusinessException에는 롤백하지 않는다.
+	 */
+	@Transactional(noRollbackFor = BusinessException.class)
+	public Confirmation confirmCode(String rawEmail, String code) {
+		String email = AuthService.normalizeEmail(rawEmail);
+		Instant now = clock.instant();
+		EmailVerification verification = repository.findByEmailForUpdate(email)
+			.orElseThrow(() -> new BusinessException(AuthErrorCode.INVALID_VERIFICATION_CODE));
+		if (verification.attemptsExceeded(properties.maxFailures())) {
+			throw attemptsExceeded();
+		}
+		if (!verification.isCodeUsable(now)) {
+			throw new BusinessException(AuthErrorCode.INVALID_VERIFICATION_CODE);
+		}
+		if (!matches(codeHash(email, code), verification.getCodeHash())) {
+			verification.recordFailure(now);
+			throw verification.attemptsExceeded(properties.maxFailures()) ? attemptsExceeded()
+					: new BusinessException(AuthErrorCode.INVALID_VERIFICATION_CODE);
+		}
+
+		verification.consumeCode(now);
+		if (userRepository.existsByEmail(email)) {
+			return Confirmation.alreadyRegistered();
+		}
+		String token = TokenGenerator.newToken();
+		verification.issueToken(TokenGenerator.hash(token), now.plus(properties.tokenTtl()), now);
+		return Confirmation.newEmail(token);
+	}
+
+	/** 해시 비교 시간이 값에 따라 달라지지 않게 한다 */
+	private static boolean matches(String a, String b) {
+		return MessageDigest.isEqual(a.getBytes(StandardCharsets.UTF_8), b.getBytes(StandardCharsets.UTF_8));
+	}
+
+	private BusinessException attemptsExceeded() {
+		return BusinessException.withArgs(AuthErrorCode.VERIFICATION_ATTEMPTS_EXCEEDED, properties.maxFailures());
+	}
+
+	/** registered=false일 때만 verificationToken이 있다 */
+	public record Confirmation(boolean registered, String verificationToken) {
+		static Confirmation alreadyRegistered() {
+			return new Confirmation(true, null);
+		}
+
+		static Confirmation newEmail(String verificationToken) {
+			return new Confirmation(false, verificationToken);
+		}
 	}
 
 	/** 000000~999999 (앞자리 0 포함 6자리) */
