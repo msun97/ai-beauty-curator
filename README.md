@@ -87,7 +87,9 @@ cd frontend && npm run lint && npm test && npm run build
 | `LOGIN_EMAIL_KEY_SECRET` | backend | 로그인 실패 기록의 이메일 HMAC 키 (32바이트 이상, 운영 필수, JWT 키와 다른 값) | local 프로필에 개발용 값 |
 | `AUTH_COOKIE_SECURE` | backend | 인증 쿠키 Secure 속성 | `true` (local 프로필은 `false`) |
 | `FRONTEND_BASE_URL` | backend | 비밀번호 재설정 링크의 프론트엔드 주소 | `http://localhost:3100` |
-| `MAIL_PROVIDER` | backend | 메일 발송 방식 (`log`: 링크를 로그로 출력, 로컬 전용) | local 프로필은 `log` |
+| `MAIL_PROVIDER` | backend | 메일 발송 방식 (`log`: 링크·인증 코드를 로그로 출력(로컬 전용), `smtp`: 실제 발송) | local 프로필은 `log` |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | backend | SMTP 계정 (`smtp`일 때 필수). Gmail은 계정 주소와 **앱 비밀번호**(2단계 인증 필요) | 없음 |
+| `MAIL_HOST` / `MAIL_PORT` | backend | SMTP 서버 | `smtp.gmail.com` / `587` |
 | `API_BASE_URL` | frontend | 백엔드 주소 (서버 컴포넌트 호출, `/api/**` 프록시 대상) | `http://localhost:8090` |
 
 운영 환경의 비밀 정보는 코드 저장소에 넣지 않고 배포 플랫폼의 환경 변수로 설정합니다.

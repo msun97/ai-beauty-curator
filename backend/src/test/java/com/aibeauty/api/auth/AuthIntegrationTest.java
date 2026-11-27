@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import com.aibeauty.api.TestcontainersConfiguration;
-import com.aibeauty.api.auth.application.PasswordResetMailSender;
+import com.aibeauty.api.global.mail.AuthMailSender;
 import com.aibeauty.api.global.security.AuthCookies;
 
 import jakarta.servlet.http.Cookie;
@@ -52,7 +52,7 @@ class AuthIntegrationTest {
 	MockMvc mockMvc;
 
 	@MockitoBean
-	PasswordResetMailSender mailSender;
+	AuthMailSender mailSender;
 
 	@Nested
 	@DisplayName("회원가입")
@@ -264,7 +264,7 @@ class AuthIntegrationTest {
 			mockMvc.perform(json(post("/api/auth/password-reset/request"), "{\"email\":\"" + email + "\"}"))
 				.andExpect(status().isAccepted());
 			ArgumentCaptor<String> link = ArgumentCaptor.forClass(String.class);
-			verify(mailSender).send(eq(email), link.capture());
+			verify(mailSender).sendPasswordResetLink(eq(email), link.capture());
 			String token = link.getValue().substring(link.getValue().indexOf("token=") + "token=".length());
 
 			String confirmBody = "{\"token\":\"" + token + "\",\"newPassword\":\"newpass456\"}";
@@ -295,7 +295,7 @@ class AuthIntegrationTest {
 			mockMvc.perform(json(post("/api/auth/password-reset/request"), "{\"email\":\"" + email + "\"}"))
 				.andExpect(status().isAccepted());
 			ArgumentCaptor<String> link = ArgumentCaptor.forClass(String.class);
-			verify(mailSender).send(eq(email), link.capture());
+			verify(mailSender).sendPasswordResetLink(eq(email), link.capture());
 			String token = link.getValue().substring(link.getValue().indexOf("token=") + "token=".length());
 			mockMvc.perform(json(post("/api/auth/password-reset/confirm"),
 					"{\"token\":\"" + token + "\",\"newPassword\":\"newpass456\"}"))
@@ -310,7 +310,7 @@ class AuthIntegrationTest {
 		void sameResponseForUnknownEmail() throws Exception {
 			mockMvc.perform(json(post("/api/auth/password-reset/request"), "{\"email\":\"" + newEmail() + "\"}"))
 				.andExpect(status().isAccepted());
-			verify(mailSender, never()).send(any(), any());
+			verify(mailSender, never()).sendPasswordResetLink(any(), any());
 		}
 	}
 
