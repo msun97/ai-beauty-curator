@@ -10,5 +10,12 @@ app:
     login:
       email-key-secret: test-only-login-email-key-0123456789-abcdef
       cleanup-cron: "-"   # 테스트 중 정리 작업이 다른 테스트의 기록을 지우지 않게 끔
+  rate-limit:
+    # 테스트는 같은 IP(127.0.0.1)로 많은 요청을 보내므로 넉넉하게. 제한 동작은 RateLimit*Test에서 값을 낮춰 확인
+    rules:
+      login-ip:   { limit: 100000, window: 1m }
+      auth-ip:    { limit: 100000, window: 1m }
+      mail-ip:    { limit: 100000, window: 1m }
+      mail-email: { limit: 100000, window: 1h }
   mail:
     provider: log

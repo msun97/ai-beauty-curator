@@ -16,6 +16,8 @@ public enum CommonErrorCode implements ErrorCode {
 	METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "지원하지 않는 요청 방식이에요."),
 	CONFLICT(HttpStatus.CONFLICT, "다른 요청과 충돌했어요. 잠시 후 다시 시도해 주세요."),
 	UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "지원하지 않는 요청 형식이에요."),
+	/** 요청 횟수 제한 초과 (FIX-009). 가입 여부와 관계없이 같은 문구 */
+	TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많아요. 잠시 후 다시 시도해 주세요."),
 	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요.");
 
 	private final HttpStatus status;

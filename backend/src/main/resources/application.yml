@@ -82,6 +82,14 @@ app:
       token-ttl: 30m
       link-base-url: ${FRONTEND_BASE_URL:http://localhost:3100}/reset-password
     terms-version: "2026-11"
+  rate-limit:                         # 요청 횟수 제한 (FIX-009). 고정 시간 구간
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    trusted-proxies: ${RATE_LIMIT_TRUSTED_PROXIES:0}  # 앞단 프록시 수. 배포 구조에 맞춰 설정 (로컬 0)
+    rules:
+      login-ip:   { limit: 10, window: 1m }   # 로그인
+      auth-ip:    { limit: 10, window: 1m }   # 가입, 인증 코드 확인, 비밀번호 재설정 완료
+      mail-ip:    { limit: 5,  window: 1m }   # 인증 코드·재설정 메일 요청 (IP)
+      mail-email: { limit: 5,  window: 1h }   # 인증 코드·재설정 메일 요청 (받는 이메일)
   mail:
     provider: ${MAIL_PROVIDER:}         # log(로컬) | smtp(실제 발송). 비우면 기동 실패 (메일 없이 배포 방지)
     from: ${MAIL_FROM:${MAIL_USERNAME:}} # Gmail SMTP는 로그인한 계정 주소와 같아야 함
