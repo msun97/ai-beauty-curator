@@ -17,4 +17,4 @@ app:
     login:
       email-key-secret: local-dev-only-login-email-key-0123456789
   mail:
-    provider: log          # 재설정 메일 대신 링크를 로그로 출력
+    provider: ${MAIL_PROVIDER:log}   # 기본은 재설정 링크·인증 코드를 로그로 출력. .env.local에 MAIL_PROVIDER=smtp를 넣으면 실제 발송
