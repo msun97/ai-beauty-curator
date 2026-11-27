@@ -1,12 +1,23 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { Icon } from "@/components/ui/Icon";
 import { getCurrentUser } from "@/lib/api/server";
 import { loginPath } from "@/lib/auth/nextPath";
 
 export const metadata: Metadata = { title: "마이" };
+
+/**
+ * 약관·처리방침 링크 (FIX-005).
+ * 개인정보 처리방침은 이용자가 쉽게 알아볼 수 있게 굵게 표시한다 (개인정보 처리방침 작성지침).
+ */
+const LEGAL_LINKS = [
+  { href: "/terms", label: "서비스 이용약관", strong: false },
+  { href: "/privacy", label: "개인정보 처리방침", strong: true },
+] as const;
 
 /**
  * 마이 화면. 로그인해야 볼 수 있다 (proxy가 비회원을 로그인 화면으로 보냄).
@@ -27,6 +38,24 @@ export default function MyPage() {
           피부 프로필과 선호·기피 성분 관리는 준비하고 있어요
         </div>
       </section>
+      <nav aria-labelledby="my-legal" className="mt-8">
+        <h2 id="my-legal" className="mb-2 text-sm font-bold text-muted">
+          약관 및 정책
+        </h2>
+        <ul className="divide-y divide-line rounded-card border border-line">
+          {LEGAL_LINKS.map((link) => (
+            <li key={link.href}>
+              <Link
+                href={link.href}
+                className={`flex min-h-12 items-center justify-between gap-2 px-5 text-base hover:bg-surface-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand ${link.strong ? "font-bold" : ""}`}
+              >
+                {link.label}
+                <Icon name="chevronRight" size={18} className="text-subtle" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </main>
   );
 }
