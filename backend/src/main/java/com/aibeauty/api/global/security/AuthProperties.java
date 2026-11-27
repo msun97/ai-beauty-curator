@@ -35,7 +35,18 @@ public record AuthProperties(Jwt jwt, Cookie cookie, Login login, PasswordReset 
 	public record Cookie(boolean secure) {
 	}
 
-	public record Login(int maxFailures, Duration lockDuration) {
+	/**
+	 * 로그인 실패 제한 (FR-AUTH-02, FIX-006).
+	 * emailKeySecret: 실패 기록을 이메일 원문 대신 HMAC 값으로 저장할 때 쓰는 비밀키 (LOGIN_EMAIL_KEY_SECRET).
+	 * 가입하지 않은 이메일도 기록하므로 원문을 남기지 않는다. JWT 서명 키와는 따로 둔다.
+	 */
+	public record Login(int maxFailures, Duration lockDuration, String emailKeySecret) {
+		public Login {
+			if (emailKeySecret == null || emailKeySecret.getBytes(StandardCharsets.UTF_8).length < 32) {
+				throw new IllegalStateException(
+						"app.auth.login.email-key-secret(LOGIN_EMAIL_KEY_SECRET)는 32바이트 이상이어야 합니다.");
+			}
+		}
 	}
 
 	/** linkBaseUrl: 메일에 넣을 프론트엔드 비밀번호 재설정 화면 주소 */

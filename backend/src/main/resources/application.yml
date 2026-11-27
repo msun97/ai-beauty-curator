@@ -54,6 +54,7 @@ app:
     login:
       max-failures: 5
       lock-duration: 10m
+      email-key-secret: ${LOGIN_EMAIL_KEY_SECRET:}  # 32바이트 이상 필수. 로그인 실패 기록의 이메일 HMAC 키 (FIX-006). 운영은 환경 변수로만 주입
     password-reset:
       token-ttl: 30m
       link-base-url: ${FRONTEND_BASE_URL:http://localhost:3100}/reset-password

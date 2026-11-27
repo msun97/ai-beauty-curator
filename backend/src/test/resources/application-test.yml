@@ -7,5 +7,7 @@ app:
       refresh-reuse-grace: 0s
     cookie:
       secure: false
+    login:
+      email-key-secret: test-only-login-email-key-0123456789-abcdef
   mail:
     provider: log
