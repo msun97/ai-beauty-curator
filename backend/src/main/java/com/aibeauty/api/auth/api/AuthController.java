@@ -3,33 +3,33 @@ package com.aibeauty.api.auth.api;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.aibeauty.api.auth.api.dto.ReqEmailVerificationConfirmDTO;
+import com.aibeauty.api.auth.api.dto.ReqEmailVerificationRequestDTO;
 import com.aibeauty.api.auth.api.dto.ResAuthUserDTO;
-import com.aibeauty.api.auth.api.dto.ResEmailAvailabilityDTO;
+import com.aibeauty.api.auth.api.dto.ResEmailVerificationDTO;
 import com.aibeauty.api.auth.api.dto.ReqLoginDTO;
 import com.aibeauty.api.auth.api.dto.ReqPasswordResetConfirmDTO;
 import com.aibeauty.api.auth.api.dto.ReqPasswordResetDTO;
 import com.aibeauty.api.auth.api.dto.ReqSignupDTO;
 import com.aibeauty.api.auth.application.AuthService;
 import com.aibeauty.api.auth.application.AuthService.AuthResult;
+import com.aibeauty.api.auth.application.EmailVerificationService;
 import com.aibeauty.api.auth.application.PasswordResetService;
 import com.aibeauty.api.global.error.BusinessException;
 import com.aibeauty.api.global.security.AuthCookies;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 
 /**
- * 회원가입·로그인·토큰 재발급·로그아웃·비밀번호 재설정.
+ * 이메일 인증·회원가입·로그인·토큰 재발급·로그아웃·비밀번호 재설정.
+ * 가입 여부는 인증 코드를 맞힌 사람에게만 알려준다 (이메일 중복 확인 API 없음, FIX-008).
  * 토큰은 응답 본문이 아닌 HttpOnly 쿠키로만 내려준다 (ADR-004).
  */
 @RestController
@@ -38,19 +38,28 @@ public class AuthController {
 
 	private final AuthService authService;
 	private final PasswordResetService passwordResetService;
+	private final EmailVerificationService emailVerificationService;
 	private final AuthCookies authCookies;
 
 	public AuthController(AuthService authService, PasswordResetService passwordResetService,
-			AuthCookies authCookies) {
+			EmailVerificationService emailVerificationService, AuthCookies authCookies) {
 		this.authService = authService;
 		this.passwordResetService = passwordResetService;
+		this.emailVerificationService = emailVerificationService;
 		this.authCookies = authCookies;
 	}
 
-	@GetMapping("/email-availability")
-	public ResEmailAvailabilityDTO emailAvailability(
-			@RequestParam @NotBlank @Email(message = "이메일 형식이 올바르지 않아요.") String email) {
-		return new ResEmailAvailabilityDTO(authService.isEmailAvailable(email));
+	/** 가입 인증 코드 발송. 가입 여부와 관계없이 항상 같은 응답(202)을 반환한다 (FIX-008). */
+	@PostMapping("/email-verification/request")
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	public void requestEmailVerification(@Valid @RequestBody ReqEmailVerificationRequestDTO request) {
+		emailVerificationService.requestCode(request.email());
+	}
+
+	/** 인증 코드 확인. 코드를 맞힌 사람에게만 가입 여부를 알려준다 (FIX-008). */
+	@PostMapping("/email-verification/confirm")
+	public ResEmailVerificationDTO confirmEmailVerification(@Valid @RequestBody ReqEmailVerificationConfirmDTO request) {
+		return ResEmailVerificationDTO.from(emailVerificationService.confirmCode(request.email(), request.code()));
 	}
 
 	@PostMapping("/signup")

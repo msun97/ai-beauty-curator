@@ -29,7 +29,7 @@ import com.aibeauty.api.global.error.CommonErrorCode;
 import com.aibeauty.api.global.error.ErrorResponseWriter;
 
 @Configuration
-@EnableConfigurationProperties(AuthProperties.class)
+@EnableConfigurationProperties({ AuthProperties.class, EmailVerificationProperties.class })
 public class SecurityConfig {
 
 	@Bean

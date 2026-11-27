@@ -11,6 +11,7 @@ import com.aibeauty.api.auth.domain.PasswordResetToken;
 import com.aibeauty.api.auth.domain.PasswordResetTokenRepository;
 import com.aibeauty.api.auth.domain.RevokedReason;
 import com.aibeauty.api.global.error.BusinessException;
+import com.aibeauty.api.global.mail.AuthMailSender;
 import com.aibeauty.api.auth.domain.AuthErrorCode;
 import com.aibeauty.api.global.security.AuthProperties;
 import com.aibeauty.api.global.security.TokenGenerator;
@@ -26,7 +27,7 @@ public class PasswordResetService {
 	private final UserRepository userRepository;
 	private final PasswordResetTokenRepository passwordResetTokenRepository;
 	private final RefreshTokenService refreshTokenService;
-	private final PasswordResetMailSender mailSender;
+	private final AuthMailSender mailSender;
 	private final PasswordEncoder passwordEncoder;
 	private final LoginAttemptService loginAttemptService;
 	private final LoginEmailKey loginEmailKey;
@@ -35,7 +36,7 @@ public class PasswordResetService {
 
 	public PasswordResetService(UserRepository userRepository,
 			PasswordResetTokenRepository passwordResetTokenRepository, RefreshTokenService refreshTokenService,
-			PasswordResetMailSender mailSender, PasswordEncoder passwordEncoder,
+			AuthMailSender mailSender, PasswordEncoder passwordEncoder,
 			LoginAttemptService loginAttemptService, LoginEmailKey loginEmailKey, AuthProperties properties,
 			Clock clock) {
 		this.userRepository = userRepository;
@@ -62,7 +63,8 @@ public class PasswordResetService {
 			String rawToken = TokenGenerator.newToken();
 			passwordResetTokenRepository.save(PasswordResetToken.issue(user, TokenGenerator.hash(rawToken),
 					now.plus(properties.passwordReset().tokenTtl()), now));
-			mailSender.send(user.getEmail(), properties.passwordReset().linkBaseUrl() + "?token=" + rawToken);
+			mailSender.sendPasswordResetLink(user.getEmail(),
+					properties.passwordReset().linkBaseUrl() + "?token=" + rawToken);
 		});
 	}
 

@@ -1,16 +1,11 @@
 package com.aibeauty.api.auth.application;
 
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
-
-import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.stereotype.Component;
 
 import com.aibeauty.api.global.security.AuthProperties;
+import com.aibeauty.api.global.security.Hmac;
 
 /**
  * 로그인 실패 기록(login_attempts)의 키를 만든다 (FIX-006).
@@ -22,24 +17,14 @@ import com.aibeauty.api.global.security.AuthProperties;
 @Component
 public class LoginEmailKey {
 
-	private static final String ALGORITHM = "HmacSHA256";
-
 	private final SecretKeySpec key;
 
 	public LoginEmailKey(AuthProperties properties) {
-		this.key = new SecretKeySpec(properties.login().emailKeySecret().getBytes(StandardCharsets.UTF_8), ALGORITHM);
+		this.key = Hmac.key(properties.login().emailKeySecret());
 	}
 
 	/** 대소문자·앞뒤 공백이 달라도 같은 이메일이면 같은 키 */
 	public String of(String rawEmail) {
-		try {
-			Mac mac = Mac.getInstance(ALGORITHM);
-			mac.init(key);
-			byte[] digest = mac.doFinal(AuthService.normalizeEmail(rawEmail).getBytes(StandardCharsets.UTF_8));
-			return HexFormat.of().formatHex(digest);
-		}
-		catch (NoSuchAlgorithmException | InvalidKeyException e) {
-			throw new IllegalStateException("HmacSHA256을 사용할 수 없습니다.", e);
-		}
+		return Hmac.sha256Hex(key, AuthService.normalizeEmail(rawEmail));
 	}
 }

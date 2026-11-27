@@ -23,6 +23,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -30,7 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import com.aibeauty.api.TestcontainersConfiguration;
-import com.aibeauty.api.auth.application.PasswordResetMailSender;
+import com.aibeauty.api.global.mail.AuthMailSender;
 import com.aibeauty.api.global.security.AuthCookies;
 
 import jakarta.servlet.http.Cookie;
@@ -51,8 +52,11 @@ class AuthIntegrationTest {
 	@Autowired
 	MockMvc mockMvc;
 
+	@Autowired
+	JdbcTemplate jdbc;
+
 	@MockitoBean
-	PasswordResetMailSender mailSender;
+	AuthMailSender mailSender;
 
 	@Nested
 	@DisplayName("회원가입")
@@ -82,20 +86,67 @@ class AuthIntegrationTest {
 		}
 
 		@Test
-		@DisplayName("이메일은 소문자로 저장되고, 대소문자만 다른 이메일은 중복으로 본다")
-		void emailIsNormalized() throws Exception {
+		@DisplayName("전체 흐름: 코드 요청 → 메일의 코드 확인 → 토큰으로 가입. 이메일은 소문자로 저장된다 (FIX-008)")
+		void fullVerificationFlow() throws Exception {
 			String email = newEmail();
-			signup(email.toUpperCase());
+			mockMvc.perform(json(post("/api/auth/email-verification/request"),
+					"{\"email\":\"" + email.toUpperCase() + "\"}"))
+				.andExpect(status().isAccepted());
+			ArgumentCaptor<String> code = ArgumentCaptor.forClass(String.class);
+			verify(mailSender).sendVerificationCode(eq(email), code.capture());
 
-			mockMvc.perform(get("/api/auth/email-availability").param("email", email))
+			String confirmed = mockMvc.perform(json(post("/api/auth/email-verification/confirm"),
+					"{\"email\":\"" + email + "\",\"code\":\"" + code.getValue() + "\"}"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.available").value(false));
-			mockMvc.perform(json(post("/api/auth/signup"), signupBody(email, PASSWORD, true)))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.code").value("EMAIL_DUPLICATED"))
-				// 화면이 이메일 입력란 아래에 표시할 수 있도록 필드 오류로도 내려준다
-				.andExpect(jsonPath("$.fieldErrors[0].field").value("email"))
-				.andExpect(jsonPath("$.fieldErrors[0].message").value("이미 가입된 이메일이에요."));
+				.andExpect(jsonPath("$.registered").value(false))
+				.andReturn().getResponse().getContentAsString();
+			String token = com.jayway.jsonpath.JsonPath.read(confirmed, "$.verificationToken");
+
+			Cookie access = mockMvc.perform(json(post("/api/auth/signup"), VerifiedEmails.signupBody(token, PASSWORD)))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getCookie(AuthCookies.ACCESS_TOKEN);
+			mockMvc.perform(get("/api/users/me").cookie(access))
+				.andExpect(jsonPath("$.email").value(email));
+		}
+
+		@Test
+		@DisplayName("가입용 토큰은 한 번만 쓸 수 있다")
+		void tokenIsSingleUse() throws Exception {
+			String token = VerifiedEmails.issueToken(jdbc, newEmail());
+			mockMvc.perform(json(post("/api/auth/signup"), VerifiedEmails.signupBody(token, PASSWORD)))
+				.andExpect(status().isCreated());
+			mockMvc.perform(json(post("/api/auth/signup"), VerifiedEmails.signupBody(token, PASSWORD)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_VERIFICATION_TOKEN"));
+		}
+
+		@Test
+		@DisplayName("만료됐거나 없는 토큰이면 INVALID_VERIFICATION_TOKEN, 토큰을 안 보내면 입력값 오류")
+		void invalidToken() throws Exception {
+			String email = newEmail();
+			String token = VerifiedEmails.issueToken(jdbc, email);
+			jdbc.update("UPDATE email_verifications SET token_expires_at = now() - interval '1 second' WHERE email = ?", email);
+			mockMvc.perform(json(post("/api/auth/signup"), VerifiedEmails.signupBody(token, PASSWORD)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_VERIFICATION_TOKEN"));
+			mockMvc.perform(json(post("/api/auth/signup"), VerifiedEmails.signupBody("no-such-token", PASSWORD)))
+				.andExpect(jsonPath("$.code").value("INVALID_VERIFICATION_TOKEN"));
+			mockMvc.perform(json(post("/api/auth/signup"),
+					"{\"password\":\"" + PASSWORD + "\",\"agreements\":{\"terms\":true,\"privacy\":true,\"skinData\":true}}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.fieldErrors[0].field").value("verificationToken"));
+		}
+
+		@Test
+		@DisplayName("가입이 실패하면(약관 미동의) 토큰은 쓰이지 않아 다시 가입할 수 있다")
+		void failedSignupKeepsToken() throws Exception {
+			String token = VerifiedEmails.issueToken(jdbc, newEmail());
+			mockMvc.perform(json(post("/api/auth/signup"), """
+					{"verificationToken":"%s","password":"%s","agreements":{"terms":true,"privacy":true,"skinData":false}}
+					""".formatted(token, PASSWORD)))
+				.andExpect(status().isBadRequest());
+			mockMvc.perform(json(post("/api/auth/signup"), VerifiedEmails.signupBody(token, PASSWORD)))
+				.andExpect(status().isCreated());
 		}
 
 		@Test
@@ -264,7 +315,7 @@ class AuthIntegrationTest {
 			mockMvc.perform(json(post("/api/auth/password-reset/request"), "{\"email\":\"" + email + "\"}"))
 				.andExpect(status().isAccepted());
 			ArgumentCaptor<String> link = ArgumentCaptor.forClass(String.class);
-			verify(mailSender).send(eq(email), link.capture());
+			verify(mailSender).sendPasswordResetLink(eq(email), link.capture());
 			String token = link.getValue().substring(link.getValue().indexOf("token=") + "token=".length());
 
 			String confirmBody = "{\"token\":\"" + token + "\",\"newPassword\":\"newpass456\"}";
@@ -295,7 +346,7 @@ class AuthIntegrationTest {
 			mockMvc.perform(json(post("/api/auth/password-reset/request"), "{\"email\":\"" + email + "\"}"))
 				.andExpect(status().isAccepted());
 			ArgumentCaptor<String> link = ArgumentCaptor.forClass(String.class);
-			verify(mailSender).send(eq(email), link.capture());
+			verify(mailSender).sendPasswordResetLink(eq(email), link.capture());
 			String token = link.getValue().substring(link.getValue().indexOf("token=") + "token=".length());
 			mockMvc.perform(json(post("/api/auth/password-reset/confirm"),
 					"{\"token\":\"" + token + "\",\"newPassword\":\"newpass456\"}"))
@@ -310,7 +361,7 @@ class AuthIntegrationTest {
 		void sameResponseForUnknownEmail() throws Exception {
 			mockMvc.perform(json(post("/api/auth/password-reset/request"), "{\"email\":\"" + newEmail() + "\"}"))
 				.andExpect(status().isAccepted());
-			verify(mailSender, never()).send(any(), any());
+			verify(mailSender, never()).sendPasswordResetLink(any(), any());
 		}
 	}
 
@@ -330,10 +381,12 @@ class AuthIntegrationTest {
 		return builder.contentType(MediaType.APPLICATION_JSON).header("X-Requested-With", "fetch").content(body);
 	}
 
-	private static String signupBody(String email, String password, boolean agreeSkinData) {
+	/** 이메일 인증을 마친 상태로 만들어 가입 본문을 만든다 */
+	private String signupBody(String email, String password, boolean agreeSkinData) {
 		return """
-				{"email":"%s","password":"%s",
-				 "agreements":{"terms":true,"privacy":true,"skinData":%s}}""".formatted(email, password, agreeSkinData);
+				{"verificationToken":"%s","password":"%s",
+				 "agreements":{"terms":true,"privacy":true,"skinData":%s}}"""
+			.formatted(VerifiedEmails.issueToken(jdbc, email), password, agreeSkinData);
 	}
 
 	private static String loginBody(String email, String password) {

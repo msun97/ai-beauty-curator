@@ -53,10 +53,22 @@ export function SignupForm() {
   const [step, setStep] = useState<Step>({ name: "email" });
   // 처음 열 때는 초점을 옮기지 않고, 코드 단계에서 "이메일 다시 입력"으로 돌아왔을 때만 이메일 칸으로 옮긴다
   const [returnedToEmail, setReturnedToEmail] = useState(false);
+  // 가입 단계에서 인증 시간(30분)이 지나 이메일 단계로 돌아왔을 때의 안내와, 다시 입력하지 않게 채워 둘 이메일
+  const [expired, setExpired] = useState<{ message: string; email: string } | null>(null);
 
   switch (step.name) {
     case "email":
-      return <EmailStep autoFocus={returnedToEmail} onSent={(email) => setStep({ name: "code", email })} />;
+      return (
+        <EmailStep
+          autoFocus={returnedToEmail}
+          notice={expired?.message}
+          initialEmail={expired?.email}
+          onSent={(email) => {
+            setExpired(null);
+            setStep({ name: "code", email });
+          }}
+        />
+      );
     case "code":
       return (
         <CodeStep
@@ -77,7 +89,17 @@ export function SignupForm() {
     case "registered":
       return <RegisteredNotice email={step.email} />;
     case "details":
-      return <DetailsStep email={step.email} verificationToken={step.verificationToken} />;
+      return (
+        <DetailsStep
+          email={step.email}
+          verificationToken={step.verificationToken}
+          onExpired={(message) => {
+            setExpired({ message, email: step.email });
+            setReturnedToEmail(true);
+            setStep({ name: "email" });
+          }}
+        />
+      );
   }
 }
 
@@ -97,8 +119,19 @@ function StepHeader({ current, title, description }: { current: 1 | 2 | 3; title
 
 // --- ① 이메일 -------------------------------------------------------------------
 
-function EmailStep({ autoFocus, onSent }: { autoFocus: boolean; onSent: (email: string) => void }) {
-  const [email, setEmail] = useState("");
+function EmailStep({
+  autoFocus,
+  notice,
+  initialEmail = "",
+  onSent,
+}: {
+  autoFocus: boolean;
+  /** 이 단계로 돌아온 이유 (예: 인증 시간 초과) */
+  notice?: string;
+  initialEmail?: string;
+  onSent: (email: string) => void;
+}) {
+  const [email, setEmail] = useState(initialEmail);
   const [errors, setErrors] = useState<FormErrors<"email">>(NO_ERRORS);
   const [submitting, setSubmitting] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -133,7 +166,11 @@ function EmailStep({ autoFocus, onSent }: { autoFocus: boolean; onSent: (email: 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
       <StepHeader current={1} title="이메일을 입력해 주세요" description="입력한 이메일로 인증 코드를 보내드려요." />
-      {errors.form && <FormAlert message={errors.form.message} traceId={errors.form.traceId} />}
+      {errors.form ? (
+        <FormAlert message={errors.form.message} traceId={errors.form.traceId} />
+      ) : (
+        <FormAlert message={notice} />
+      )}
       <TextField
         ref={input}
         label="이메일"
@@ -310,7 +347,16 @@ function RegisteredNotice({ email }: { email: string }) {
 
 // --- ③ 비밀번호·닉네임·약관 -----------------------------------------------------
 
-function DetailsStep({ email, verificationToken }: { email: string; verificationToken: string }) {
+function DetailsStep({
+  email,
+  verificationToken,
+  onExpired,
+}: {
+  email: string;
+  verificationToken: string;
+  /** 가입용 토큰이 만료(30분)·사용됨: 이메일 인증부터 다시 하게 한다 */
+  onExpired: (message: string) => void;
+}) {
   const router = useRouter();
   const [values, setValues] = useState<DetailValues>(EMPTY_DETAILS);
   const [errors, setErrors] = useState<FormErrors<DetailField>>(NO_ERRORS);
@@ -354,6 +400,10 @@ function DetailsStep({ email, verificationToken }: { email: string; verification
       await signupApi.signup(toSignupRequest(verificationToken, values));
     } catch (e) {
       const next = toFormErrors(e, DETAIL_FIELDS);
+      if (next.form?.code === "INVALID_VERIFICATION_TOKEN") {
+        onExpired(next.form.message);
+        return;
+      }
       setErrors(next);
       setSubmitting(false);
       focusFirstError(next.fields);

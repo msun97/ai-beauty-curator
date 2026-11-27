@@ -102,9 +102,8 @@ class LoginEnumerationIntegrationTest {
 	}
 
 	private void signup(String email) throws Exception {
-		perform("/api/auth/signup", """
-				{"email":"%s","password":"%s","agreements":{"terms":true,"privacy":true,"skinData":true}}
-				""".formatted(email, PASSWORD)).andExpect(status().isCreated());
+		perform("/api/auth/signup", VerifiedEmails.signupBody(VerifiedEmails.issueToken(jdbc, email), PASSWORD))
+			.andExpect(status().isCreated());
 	}
 
 	private ResultActions login(String email, String password) throws Exception {

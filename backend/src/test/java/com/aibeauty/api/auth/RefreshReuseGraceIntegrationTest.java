@@ -18,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
@@ -42,6 +43,9 @@ class RefreshReuseGraceIntegrationTest {
 
 	@Autowired
 	MockMvc mockMvc;
+
+	@Autowired
+	JdbcTemplate jdbc;
 
 	@Test
 	@DisplayName("유예 시간 안에 같은 토큰으로 다시 재발급하면 둘 다 성공하고, 새로 받은 토큰도 계속 쓸 수 있다")
@@ -107,9 +111,8 @@ class RefreshReuseGraceIntegrationTest {
 	}
 
 	private Cookie signupRefreshCookie() throws Exception {
-		String body = """
-				{"email":"grace-%s@example.com","password":"password123","agreements":{"terms":true,"privacy":true,"skinData":true}}
-				""".formatted(UUID.randomUUID());
+		String token = VerifiedEmails.issueToken(jdbc, "grace-" + UUID.randomUUID() + "@example.com");
+		String body = VerifiedEmails.signupBody(token, "password123");
 		return mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON)
 				.header("X-Requested-With", "fetch")
 				.content(body))

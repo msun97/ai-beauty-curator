@@ -10,11 +10,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 오래된 로그인 실패 기록 정리 (FIX-006).
- *
- * 가입하지 않은 이메일의 기록도 쌓이므로 필요 이상 보관하지 않는다.
- * 잠금이 끝났고(또는 잠긴 적 없고) 마지막 시도가 하루 넘게 지난 행을 지운다.
- * 개인정보 처리방침의 "로그인 실패 기록은 하루 뒤 삭제"와 같아야 한다.
+ * 오래된 인증 기록 정리. 가입하지 않은 이메일의 기록도 쌓이므로 필요 이상 보관하지 않는다.
+ * - 로그인 실패 기록(FIX-006): 잠금이 끝났고(또는 잠긴 적 없고) 마지막 시도가 하루 넘게 지난 행
+ * - 가입 이메일 인증(FIX-008): 코드·토큰이 모두 만료됐거나 토큰을 썼고 마지막 변경이 하루 넘게 지난 행
+ * 개인정보 처리방침의 보관 기간(하루)과 같아야 한다.
  */
 @Component
 public class LoginAttemptCleanupJob {
@@ -25,19 +24,24 @@ public class LoginAttemptCleanupJob {
 	private static final Logger log = LoggerFactory.getLogger(LoginAttemptCleanupJob.class);
 
 	private final LoginAttemptService loginAttemptService;
+	private final EmailVerificationService emailVerificationService;
 	private final Clock clock;
 
-	public LoginAttemptCleanupJob(LoginAttemptService loginAttemptService, Clock clock) {
+	public LoginAttemptCleanupJob(LoginAttemptService loginAttemptService,
+			EmailVerificationService emailVerificationService, Clock clock) {
 		this.loginAttemptService = loginAttemptService;
+		this.emailVerificationService = emailVerificationService;
 		this.clock = clock;
 	}
 
 	@Scheduled(cron = "${app.auth.login.cleanup-cron:0 0 * * * *}")
 	public void deleteStale() {
 		Instant now = clock.instant();
-		int deleted = loginAttemptService.deleteStale(now.minus(RETENTION), now);
-		if (deleted > 0) {
-			log.info("오래된 로그인 실패 기록 {}건 삭제", deleted);
+		Instant staleBefore = now.minus(RETENTION);
+		int attempts = loginAttemptService.deleteStale(staleBefore, now);
+		int verifications = emailVerificationService.deleteStale(staleBefore, now);
+		if (attempts > 0 || verifications > 0) {
+			log.info("오래된 인증 기록 삭제: 로그인 실패 {}건, 이메일 인증 {}건", attempts, verifications);
 		}
 	}
 }
