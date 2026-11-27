@@ -64,6 +64,12 @@ erDiagram
     users ||--o{ user_consents : "동의"
     users ||--o{ password_reset_tokens : "재설정"
     users ||--o{ refresh_tokens : "로그인 세션"
+    login_attempts {
+        char email_key PK "이메일 HMAC-SHA256, 원문 저장 안 함"
+        int failed_count
+        timestamptz locked_until
+        timestamptz updated_at
+    }
 
     users {
         bigint id PK
@@ -72,8 +78,6 @@ erDiagram
         varchar nickname
         varchar role "USER | ADMIN"
         uuid actor_key UK "행동 로그용 가명 키"
-        int failed_login_count
-        timestamptz locked_until
         timestamptz password_changed_at
         timestamptz created_at
         timestamptz updated_at
@@ -110,7 +114,7 @@ erDiagram
 | 항목 | 설계 내용 | 요구사항 |
 |---|---|---|
 | 이메일 중복 | `lower(email)`에 유니크 인덱스 | FR-AUTH-01 |
-| 로그인 제한 | `failed_login_count`가 5회가 되면 `locked_until` 설정 | FR-AUTH-02 |
+| 로그인 제한 | 이메일 기준 `login_attempts`에서 `failed_count`가 5회가 되면 `locked_until` 설정. 회원과 FK 없이 가입하지 않은 이메일도 똑같이 기록해 가입 여부가 드러나지 않게 함. 키는 이메일 HMAC 값이며 하루 지난 행은 정리 (FIX-006) | FR-AUTH-02 |
 | 동의 분리 | 피부 정보 동의(`SKIN_DATA`)를 별도 행으로 저장하고 약관 버전을 기록 | FR-AUTH-01, NFR-PRIV-01 |
 | 비밀번호 재설정 | 토큰 원문이 아닌 해시만 저장. 재설정 완료 시 해당 사용자의 `refresh_tokens`를 모두 `revoked_at` 처리 | FR-AUTH-05 |
 | 탈퇴 | `users` 행을 삭제하고 프로필·북마크 등은 `ON DELETE CASCADE`로 함께 삭제. 행동 로그는 `actor_key`로만 연결되어 있어 개인 식별이 불가능해짐 | FR-AUTH-04 |

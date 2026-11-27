@@ -1,6 +1,5 @@
 package com.aibeauty.api.user.domain;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -44,11 +43,6 @@ public class User {
 	private UUID actorKey;
 
 	@Column(nullable = false)
-	private int failedLoginCount;
-
-	private Instant lockedUntil;
-
-	@Column(nullable = false)
 	private Instant passwordChangedAt;
 
 	@Column(nullable = false)
@@ -63,7 +57,6 @@ public class User {
 		this.nickname = nickname;
 		this.role = role;
 		this.actorKey = UUID.randomUUID();
-		this.failedLoginCount = 0;
 		this.passwordChangedAt = now;
 		this.createdAt = now;
 		this.updatedAt = now;
@@ -74,33 +67,9 @@ public class User {
 		return new User(email, passwordHash, nickname, Role.USER, now);
 	}
 
-	public boolean isLocked(Instant now) {
-		return lockedUntil != null && lockedUntil.isAfter(now);
-	}
-
-	/** 로그인 실패를 기록하고, 연속 실패가 기준에 도달하면 일정 시간 로그인을 제한한다 (FR-AUTH-02). */
-	public void recordLoginFailure(int maxFailures, Duration lockDuration, Instant now) {
-		failedLoginCount++;
-		if (failedLoginCount >= maxFailures) {
-			lockedUntil = now.plus(lockDuration);
-			failedLoginCount = 0;
-		}
-		updatedAt = now;
-	}
-
-	public void recordLoginSuccess(Instant now) {
-		if (failedLoginCount != 0 || lockedUntil != null) {
-			failedLoginCount = 0;
-			lockedUntil = null;
-			updatedAt = now;
-		}
-	}
-
 	public void changePassword(String newPasswordHash, Instant now) {
 		this.passwordHash = newPasswordHash;
 		this.passwordChangedAt = now;
-		this.failedLoginCount = 0;
-		this.lockedUntil = null;
 		this.updatedAt = now;
 	}
 }

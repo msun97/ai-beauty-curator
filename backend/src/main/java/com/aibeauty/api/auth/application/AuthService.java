@@ -32,6 +32,8 @@ public class AuthService {
 	private final RefreshTokenService refreshTokenService;
 	private final AccessTokenProvider accessTokenProvider;
 	private final PasswordEncoder passwordEncoder;
+	private final LoginAttemptService loginAttemptService;
+	private final LoginEmailKey loginEmailKey;
 	private final AuthProperties properties;
 	private final Clock clock;
 
@@ -40,12 +42,15 @@ public class AuthService {
 
 	public AuthService(UserRepository userRepository, UserConsentRepository userConsentRepository,
 			RefreshTokenService refreshTokenService, AccessTokenProvider accessTokenProvider,
-			PasswordEncoder passwordEncoder, AuthProperties properties, Clock clock) {
+			PasswordEncoder passwordEncoder, LoginAttemptService loginAttemptService, LoginEmailKey loginEmailKey,
+			AuthProperties properties, Clock clock) {
 		this.userRepository = userRepository;
 		this.userConsentRepository = userConsentRepository;
 		this.refreshTokenService = refreshTokenService;
 		this.accessTokenProvider = accessTokenProvider;
 		this.passwordEncoder = passwordEncoder;
+		this.loginAttemptService = loginAttemptService;
+		this.loginEmailKey = loginEmailKey;
 		this.properties = properties;
 		this.clock = clock;
 		this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
@@ -93,24 +98,29 @@ public class AuthService {
 
 	/**
 	 * 실패 원인(이메일 없음, 비밀번호 틀림)을 구분하지 않고 같은 오류를 반환한다 (FR-AUTH-02).
-	 * 실패 횟수는 예외를 던져도 저장되어야 하므로 BusinessException에는 롤백하지 않는다.
+	 *
+	 * 가입 여부가 드러나지 않도록 두 경우가 같은 길을 걷는다 (FIX-006).
+	 * - 실패 기록·잠금은 회원 행이 아니라 이메일 기준(login_attempts)이라, 없는 이메일도 똑같이 5번째에 잠긴다.
+	 * - 없는 이메일도 가짜 해시로 비밀번호를 비교하고, 실패 기록 쓰기도 똑같이 한 번 해서 응답 시간이 같다.
+	 * 실패 기록은 예외를 던져도 저장되어야 하므로 BusinessException에는 롤백하지 않는다.
 	 */
 	@Transactional(noRollbackFor = BusinessException.class)
 	public AuthResult login(String rawEmail, String password) {
 		Instant now = clock.instant();
-		User user = userRepository.findByEmail(normalizeEmail(rawEmail)).orElse(null);
-		if (user == null) {
-			passwordEncoder.matches(password, dummyPasswordHash);
-			throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
-		}
-		if (user.isLocked(now)) {
+		String emailKey = loginEmailKey.of(rawEmail);
+		if (loginAttemptService.isLocked(emailKey, now)) {
 			throw loginLocked();
 		}
-		if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-			user.recordLoginFailure(properties.login().maxFailures(), properties.login().lockDuration(), now);
-			throw user.isLocked(now) ? loginLocked() : new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
+
+		User user = userRepository.findByEmail(normalizeEmail(rawEmail)).orElse(null);
+		boolean passwordMatches = passwordEncoder.matches(password,
+				user != null ? user.getPasswordHash() : dummyPasswordHash);
+		if (user == null || !passwordMatches) {
+			boolean locked = loginAttemptService.recordFailure(emailKey, now);
+			throw locked ? loginLocked() : new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
 		}
-		user.recordLoginSuccess(now);
+
+		loginAttemptService.reset(emailKey);
 		return issueTokens(user);
 	}
 

@@ -30,7 +30,7 @@
 |---|---|
 | 로그아웃 (NFR-SEC-03) | 해당 Refresh Token 폐기 + 쿠키 삭제 |
 | 비밀번호 재설정 후 기존 로그인 해제 (FR-AUTH-05) | 해당 사용자의 Refresh Token을 모두 폐기 |
-| 연속 5회 실패 시 로그인 제한 (FR-AUTH-02) | `users.failed_login_count`, `locked_until`로 처리 |
+| 연속 5회 실패 시 로그인 제한 (FR-AUTH-02) | 이메일 기준 `login_attempts`(이메일 HMAC 키)로 처리. 가입하지 않은 이메일도 똑같이 세고 잠가 가입 여부를 숨김 (FIX-006) |
 | 관리자 API (FR-ADM-01) | Access Token의 `role` 클레임으로 검사 |
 
 ## 감수하는 한계
