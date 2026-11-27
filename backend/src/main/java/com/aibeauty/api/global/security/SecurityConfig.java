@@ -25,6 +25,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
+import com.aibeauty.api.global.ratelimit.ClientIpResolver;
+import com.aibeauty.api.global.ratelimit.RateLimitFilter;
+import com.aibeauty.api.global.ratelimit.RateLimitService;
 import com.aibeauty.api.global.error.CommonErrorCode;
 import com.aibeauty.api.global.error.ErrorResponseWriter;
 
@@ -33,8 +36,9 @@ import com.aibeauty.api.global.error.ErrorResponseWriter;
 public class SecurityConfig {
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http, ErrorResponseWriter errorResponseWriter)
-			throws Exception {
+	public SecurityFilterChain securityFilterChain(HttpSecurity http, ErrorResponseWriter errorResponseWriter,
+			RateLimitService rateLimitService, ClientIpResolver clientIpResolver) throws Exception {
+		CsrfHeaderFilter csrfHeaderFilter = new CsrfHeaderFilter(errorResponseWriter);
 		http
 			// 세션을 만들지 않고 매 요청 JWT로 인증한다
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -66,7 +70,10 @@ public class SecurityConfig {
 					errorResponseWriter.write(response, CommonErrorCode.UNAUTHORIZED))
 				.accessDeniedHandler((request, response, e) ->
 					errorResponseWriter.write(response, CommonErrorCode.FORBIDDEN)))
-			.addFilterBefore(new CsrfHeaderFilter(errorResponseWriter), BearerTokenAuthenticationFilter.class);
+			.addFilterBefore(csrfHeaderFilter, BearerTokenAuthenticationFilter.class)
+			// 인증 API의 IP 기준 요청 횟수 제한 (FIX-009). CSRF 헤더가 없는 요청은 세지 않는다
+			.addFilterAfter(new RateLimitFilter(rateLimitService, clientIpResolver, errorResponseWriter),
+					CsrfHeaderFilter.class);
 		return http.build();
 	}
 

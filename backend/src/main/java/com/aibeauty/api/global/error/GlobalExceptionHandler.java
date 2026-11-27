@@ -22,6 +22,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.aibeauty.api.global.ratelimit.RateLimitExceededException;
 import com.aibeauty.api.global.error.ResErrorDTO.FieldError;
 
 /**
@@ -49,7 +50,12 @@ public class GlobalExceptionHandler {
 		List<FieldError> fieldErrors = code.field() == null
 				? List.of()
 				: List.of(new FieldError(code.field(), message));
-		return ResponseEntity.status(code.status()).body(ResErrorDTO.of(code, message, fieldErrors));
+		ResponseEntity.BodyBuilder response = ResponseEntity.status(code.status());
+		if (e instanceof RateLimitExceededException limited) {
+			// 언제 다시 시도할 수 있는지 알려준다 (FIX-009)
+			response.header(HttpHeaders.RETRY_AFTER, String.valueOf(limited.retryAfterSeconds()));
+		}
+		return response.body(ResErrorDTO.of(code, message, fieldErrors));
 	}
 
 	/** @RequestBody 검증 실패 */
