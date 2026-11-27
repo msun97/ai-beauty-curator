@@ -95,4 +95,33 @@ class EmailVerificationRequestIntegrationTest {
 			assertThat(EmailVerificationService.newCode()).matches("\\d{6}");
 		}
 	}
+
+	@Test
+	@DisplayName("같은 이메일로 동시에 5번 요청해도 행은 하나, 메일은 한 통만 보낸다 (충돌·중복 발송 없음)")
+	void concurrentRequests() throws Exception {
+		String email = newEmail();
+		int threads = 5;
+		java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(threads);
+		java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+		java.util.List<java.util.concurrent.Future<?>> results = new java.util.ArrayList<>();
+		try {
+			for (int i = 0; i < threads; i++) {
+				results.add(pool.submit(() -> {
+					start.await();
+					service.requestCode(email);
+					return null;
+				}));
+			}
+			start.countDown();
+			for (java.util.concurrent.Future<?> result : results) {
+				result.get();
+			}
+		}
+		finally {
+			pool.shutdownNow();
+		}
+		verify(mailSender, times(1)).sendVerificationCode(eq(email), anyString());
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM email_verifications WHERE email = ?", Integer.class, email))
+			.isOne();
+	}
 }
