@@ -9,7 +9,6 @@ import com.aibeauty.api.global.error.ErrorCode;
  */
 public enum AuthErrorCode implements ErrorCode {
 
-	EMAIL_DUPLICATED(HttpStatus.CONFLICT, "이미 가입된 이메일이에요.", "email"),
 	REQUIRED_CONSENT_MISSING(HttpStatus.BAD_REQUEST, "필수 약관에 모두 동의해 주세요.", "agreements"),
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않아요."),
 	/** {0}: 최대 실패 횟수, {1}: 잠금 시간. 둘 다 설정값(app.auth.login)으로 채운다 */

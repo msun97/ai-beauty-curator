@@ -106,6 +106,14 @@ class EmailVerificationApiIntegrationTest {
 			.andExpect(jsonPath("$.fieldErrors[0].field").value("code"));
 	}
 
+	@Test
+	@DisplayName("이메일 중복 확인 API는 없다 (누구나 가입 여부를 알 수 있던 통로 제거)")
+	void noAvailabilityApi() throws Exception {
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+			.get("/api/auth/email-availability").param("email", newEmail()))
+			.andExpect(status().isNotFound());
+	}
+
 	private String sentCode(String email) {
 		ArgumentCaptor<String> code = ArgumentCaptor.forClass(String.class);
 		verify(mailSender).sendVerificationCode(eq(email), code.capture());

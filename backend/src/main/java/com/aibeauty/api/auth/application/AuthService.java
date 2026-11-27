@@ -62,11 +62,6 @@ public class AuthService {
 		return email.trim().toLowerCase(Locale.ROOT);
 	}
 
-	@Transactional(readOnly = true)
-	public boolean isEmailAvailable(String email) {
-		return !userRepository.existsByEmail(normalizeEmail(email));
-	}
-
 	/**
 	 * 회원가입 후 바로 로그인 상태로 만든다 (가입 전 입력한 프로필을 이어서 저장하기 위해 - FR-PRF-05).
 	 * 이메일은 인증 코드 확인에서 받은 1회용 토큰으로 찾는다 (FIX-008). 토큰 사용 처리도 같은 트랜잭션이라
