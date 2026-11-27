@@ -28,18 +28,23 @@ public class PasswordResetService {
 	private final RefreshTokenService refreshTokenService;
 	private final PasswordResetMailSender mailSender;
 	private final PasswordEncoder passwordEncoder;
+	private final LoginAttemptService loginAttemptService;
+	private final LoginEmailKey loginEmailKey;
 	private final AuthProperties properties;
 	private final Clock clock;
 
 	public PasswordResetService(UserRepository userRepository,
 			PasswordResetTokenRepository passwordResetTokenRepository, RefreshTokenService refreshTokenService,
-			PasswordResetMailSender mailSender, PasswordEncoder passwordEncoder, AuthProperties properties,
+			PasswordResetMailSender mailSender, PasswordEncoder passwordEncoder,
+			LoginAttemptService loginAttemptService, LoginEmailKey loginEmailKey, AuthProperties properties,
 			Clock clock) {
 		this.userRepository = userRepository;
 		this.passwordResetTokenRepository = passwordResetTokenRepository;
 		this.refreshTokenService = refreshTokenService;
 		this.mailSender = mailSender;
 		this.passwordEncoder = passwordEncoder;
+		this.loginAttemptService = loginAttemptService;
+		this.loginEmailKey = loginEmailKey;
 		this.properties = properties;
 		this.clock = clock;
 	}
@@ -61,7 +66,10 @@ public class PasswordResetService {
 		});
 	}
 
-	/** 새 비밀번호로 바꾸고, 기존 로그인 상태(Refresh Token)를 모두 해제한다. */
+	/**
+	 * 새 비밀번호로 바꾸고, 기존 로그인 상태(Refresh Token)를 모두 해제한다.
+	 * 로그인 제한도 바로 풀어 준다 — 잠금 안내 문구가 "비밀번호를 재설정하면 바로 로그인할 수 있어요"이기 때문 (FIX-006).
+	 */
 	@Transactional
 	public void confirm(String rawToken, String newPassword) {
 		Instant now = clock.instant();
@@ -74,5 +82,6 @@ public class PasswordResetService {
 		User user = token.getUser();
 		user.changePassword(passwordEncoder.encode(newPassword), now);
 		refreshTokenService.revokeAll(user.getId(), RevokedReason.PASSWORD_RESET);
+		loginAttemptService.reset(loginEmailKey.of(user.getEmail()));
 	}
 }

@@ -282,6 +282,30 @@ class AuthIntegrationTest {
 		}
 
 		@Test
+		@DisplayName("로그인이 제한된 상태에서 비밀번호를 재설정하면 바로 로그인할 수 있다 (잠금 문구의 약속, FIX-006)")
+		void resetUnlocksLogin() throws Exception {
+			String email = newEmail();
+			signup(email);
+			for (int i = 0; i < 5; i++) {
+				mockMvc.perform(json(post("/api/auth/login"), loginBody(email, "wrong12345")));
+			}
+			mockMvc.perform(json(post("/api/auth/login"), loginBody(email, PASSWORD)))
+				.andExpect(jsonPath("$.code").value("LOGIN_LOCKED"));
+
+			mockMvc.perform(json(post("/api/auth/password-reset/request"), "{\"email\":\"" + email + "\"}"))
+				.andExpect(status().isAccepted());
+			ArgumentCaptor<String> link = ArgumentCaptor.forClass(String.class);
+			verify(mailSender).send(eq(email), link.capture());
+			String token = link.getValue().substring(link.getValue().indexOf("token=") + "token=".length());
+			mockMvc.perform(json(post("/api/auth/password-reset/confirm"),
+					"{\"token\":\"" + token + "\",\"newPassword\":\"newpass456\"}"))
+				.andExpect(status().isNoContent());
+
+			mockMvc.perform(json(post("/api/auth/login"), loginBody(email, "newpass456")))
+				.andExpect(status().isOk());
+		}
+
+		@Test
 		@DisplayName("가입되지 않은 이메일도 같은 응답을 받고, 메일은 보내지 않는다")
 		void sameResponseForUnknownEmail() throws Exception {
 			mockMvc.perform(json(post("/api/auth/password-reset/request"), "{\"email\":\"" + newEmail() + "\"}"))
